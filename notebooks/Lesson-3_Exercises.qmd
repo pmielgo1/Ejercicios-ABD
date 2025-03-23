@@ -163,15 +163,16 @@ Calcula o comprueba las siguientes respuestas usando comandos de R:
 -   ¿Cuál es el valor máximo de la función de densidad?
 
 ::: {#respuesta-1 .callout-note}
-::: #Para la distribución uniforme, el máximo está en cualquier valor y es simepre 1:
+
+#Para la distribución uniforme, el máximo está en cualquier valor y es simepre 1 o el valor máximo que se asigne.
 
 dunif(0.5, min = 0, max = 1)
 
-::: #Para la distribución normal, el máximo está en la media, que coincide con la moda:
+#Para la distribución normal, el máximo está en la media, que coincide con la moda:
 
 dnorm(0, mean = 0, sd = 1)
 
-#En este caso, el valor máximo que alcanza la distribución es 0,399 (aprox)
+#En este caso, el valor máximo que alcanza la distribución es 0,399 (aprox 0,400)
 
 
 ### Pregunta 2
@@ -179,14 +180,15 @@ dnorm(0, mean = 0, sd = 1)
 -   ¿Para qué valor de la variable aleatoria se da? ¿Cómo llamarías a ese valor?
 
 ::: {#respuesta-2 .callout-note}
-::: #En ambos casos, el valor de frencuencia máxima es la moda. En el caso de la normal. En el caso de la uniforme, todo el rango tiene el mismo valor, así que no hay una moda estricta como tal. Para la normal, el valor de la moda y el de la media coinciden, por lo que tanto media como moda serán x=0.
+#En ambos casos, el valor de frencuencia máxima es la moda.En el caso de la uniforme, todo el rango tiene el mismo valor, así que no hay una moda estricta como tal. Para la normal, el valor de la moda y el de la media coinciden, por lo que tanto media como moda serán x=0.
 
 ### Pregunta 3
 
 -   El valor máximo, ¿puede ser mayor que 1? Justifica tu respuesta.
 
 ::: {#respuesta-3 .callout-note}
-::: No, en la uniforme planteada, el 1 es el único valor posible (otra cosa sería que se redujese el rango, en cuyo caso, si el área no varía, podría ser mayor que 1). En cuanto a la normal, no puede ser mayor que 1 en tanto que la normal viene definida como 1/(sqrt(2*pi*s)*e((x-mu)^2)/(2*s)^2)), es decir, el valor teórico máximo será siempre 1.
+
+#No, en la uniforme planteada, el 1 es el único valor posible (otra cosa sería que se redujese el rango, en cuyo caso, si el área no varía, podría ser mayor que 1). En cuanto a la normal, no puede ser mayor que 1 en tanto que la normal viene definida como 1/(sqrt(2*pi*s)*e((x-mu)^2)/(2*s)^2)), es decir, el valor teórico máximo será siempre 1.
 
 ### Pregunta 4
 
@@ -196,14 +198,11 @@ dnorm(0, mean = 0, sd = 1)
 
 ::: {#respuesta-4 .callout-note}
 
-library(ggplot2)
-library(tibble)
-
 # Se crean los datos para la CDF de una normal estándar (mu=0 y sigma=1)
 
 normal <- tibble(
   variable = seq(-4, 4, by = 1e-3),
-  cdf = pnorm(variable, mean = 0, sd = 1)  # pnorm ya da la CDF
+  cdf = pnorm(variable, mean = 0, sd = 1)
 )
 
 # Se grafica la CDF
@@ -214,7 +213,20 @@ ggplot(normal, aes(x = variable, y = cdf)) +
        x = "Valor",
        y = "Probabilidad acumulada") +
   theme_minimal()
+  
+##Para la pdf
 
+# Calcular la función de densidad de probabilidad (PDF)
+x_vals <- seq(-4, 4, length.out = 1000)
+pdf_vals <- dnorm(x_vals, mean = 0, sd = 1)
+
+# Graficar la PDF
+ggplot(data = data.frame(x = x_vals, pdf = pdf_vals), aes(x = x, y = pdf)) +
+  geom_line(color = "blue", size = 1) +
+  labs(title = "Función de Densidad de Probabilidad (PDF) de la Normal Estándar",
+       x = "Valor",
+       y = "Densidad de Probabilidad") +
+  theme_minimal()
 
 
 ### Pregunta 5
@@ -222,7 +234,8 @@ ggplot(normal, aes(x = variable, y = cdf)) +
 -   Calcula el valor esperado de la distribución normal.
 
 ::: {#respuesta-5 .callout-note}
-::: #El valor esperado es la esperanza o media:
+
+#El valor esperado es la esperanza o media:
 
 mean_normal <- integrate(function(x) x * dnorm(x), -Inf, Inf)$value
 mean_normal
@@ -244,11 +257,14 @@ pnorm(0, mean = 0, sd = 1)
 
 ::: {#respuesta-6 .callout-note}
 
+#Se crean los valores para beta
+
 beta_1_1 <- tibble(
   variable = seq(0, 1, by = 1e-3),
   densidad = dbeta(variable, shape1 = 1, shape2 = 1)
 )
 
+#Gráficamente
 ggplot(beta_1_1, aes(x = variable, y = densidad)) +
   geom_line(color = color_defecto)
 
@@ -258,7 +274,8 @@ ggplot(beta_1_1, aes(x = variable, y = densidad)) +
 -   ¿Qué forma tiene?
 
 ::: {#respuesta-7 .callout-note}
-::: #Esta función es no informativa, ya que es uniform en [0,1].
+
+#Esta función es no informativa, ya que es uniforme en [0,1].
 
 ## Parámetros de la distribución Beta
 
@@ -268,10 +285,8 @@ ggplot(beta_1_1, aes(x = variable, y = densidad)) +
 
 ::: {#respuesta-8 .callout-note}
 
-library(ggplot2)
-library(tibble)
 
-# Crear los datos con nuevos valores de α y β
+# Crear los datos con nuevos valores de alfa y beta
 data_beta <- tibble(
   x = rep(seq(0, 1, by = 1e-3), 4),
   y = c(dbeta(seq(0, 1, by = 1e-3), 2, 2),
@@ -297,7 +312,8 @@ ggplot(data_beta, aes(x = x, y = y, color = curva)) +
 -   ¿Qué ocurre a medida que van creciendo?
 
 ::: {#respuesta-9 .callout-note}
-::: #Se observa que, cuando a y b son pequeños, la curva acumula densidad en los extremos, mientras que cuando crecen lo hacen el centro, asemejándose a una normal como indica el TCL. Cuando a y B son 1, la curva es una uniforme.
+
+#Se observa que, cuando a y b son pequeños, la curva acumula densidad en los extremos, mientras que cuando crecen lo hacen el centro, asemejándose a una normal como indica el TCL. Cuando a y B son 1, la curva es una uniforme.
 
 ### Pregunta 10
 
@@ -305,7 +321,7 @@ ggplot(data_beta, aes(x = x, y = y, color = curva)) +
 
 ::: {#respuesta-10 .callout-note}
 
-# Crear los datos con diferentes valores de α y β
+# Crear los datos con diferentes valores de alfa y beta
 data_beta <- tibble(
   x = rep(seq(0, 1, by = 1e-3), 5),
   y = c(dbeta(seq(0, 1, by = 1e-3), 1, 1),   # Uniforme
@@ -341,7 +357,7 @@ ggplot(data_beta, aes(x = x, y = y, color = curva)) +
 )
 
 
-#Se observa que, cuando a=B, hay simetría; cuando a<B, hay sesgo a la izquierda; y cuando a>B, a la derecha.
+#Se observa que, cuando alfa=beta, hay simetría; cuando alfa<beta, hay sesgo a la izquierda; y cuando alfa>beta, a la derecha.
 
 ### Pregunta 11
 
@@ -370,7 +386,7 @@ ggplot(data_beta, aes(x = x, y = y, color = curva)) +
        color = "Parámetros (α, β)") +  # Etiqueta de la leyenda
   theme_minimal()
 
-#Cuando a=B=ligeramente>1, se ve que la distribución empieza a tomar la forma acamapanada. Cuando solo uno de los parámtros es ligeramente>1, se observa que el sesgo de la función de exagera.
+#Cuando alfa=beta=ligeramente>1, se ve que la distribución empieza a tomar la forma acamapanada. Cuando solo uno de los parámtros es ligeramente>1, se observa que el sesgo de la función de exagera.
 
 ### Pregunta 12
 
@@ -379,7 +395,7 @@ ggplot(data_beta, aes(x = x, y = y, color = curva)) +
 ::: {#respuesta-12 .callout-note}
 
 
-# Crear los datos con valores de α y β ligeramente y moderadamente por debajo de 1
+# Crear los datos con valores de alfa y beta ligeramente y moderadamente por debajo de 1
 data_beta <- tibble(
   x = rep(seq(0, 1, by = 1e-3), 4),
   y = c(dbeta(seq(0, 1, by = 1e-3), 0.9, 0.9),   # Forma en "U"
@@ -402,10 +418,10 @@ ggplot(data_beta, aes(x = x, y = y, color = curva)) +
        color = "Parámetros (α, β)") +  # Etiqueta de la leyenda
   theme_minimal()
 
-# La curva toma la forma de U. La dirección del sesgo cuando a=/B se invierte respecto a los valores >1.
+# La curva toma la forma de U. La dirección del sesgo cuando alfa=/beta se invierte respecto a los valores >1.
 
 
-# Crear los datos con un α mayor que 1 y un β menor que 1, y viceversa
+# Crear los datos con un alfa mayor que 1 y un beta menor que 1, y viceversa
 data_beta <- tibble(
   x = rep(seq(0, 1, by = 1e-3), 2),
   y = c(dbeta(seq(0, 1, by = 1e-3), 2, 0.5),   # α > 1, β < 1 (Sesgo a la derecha)
@@ -424,7 +440,7 @@ ggplot(data_beta, aes(x = x, y = y, color = curva)) +
        color = "Parámetros (α, β)") +  # Etiqueta de la leyenda
   theme_minimal()
 
-#Cuando solo un parámetro es <1, la U pierde uno de sus extremos.
+#Cuando solo un parámetro es <1, la U "pierde" uno de sus extremos.
 
 # Ejercicio 3
 
@@ -455,6 +471,7 @@ theta <- seq(0, 1, length = 100)
 *(Ajusta los ejes correctamente, si hace falta, como en la distribución uniforme).*
 
 ::: {#respuesta-14 .callout-note}
+
 # La distribución no informativa será una beta(1,1), que es uniforme en [0,1].
 
 # Distribución Beta(1,1) no informativa
@@ -471,6 +488,7 @@ ggplot(data.frame(theta, prior), aes(x = theta, y = prior)) +
 -   Supón que $y$ es el número de usuarios/as que han respondido que "Sí" descargarían la app. Formula la verosimilitud del modelo.
 
 ::: {#respuesta-15 .callout-note}
+
 # La verosimilitud del modelo sigue una distribución binomial, ya que es la respuesta binaria del número de personas que descargarían la app.
 
 # Función de verosimilitud binomial
@@ -501,7 +519,7 @@ likelihood <- function(theta, y, n) {
 
 # Datos de la muestra
 n <- 22
-y <- sum(aceptacion_muestra$resp_descarga_app == "Si")  # Contamos los "Sí"
+y <- sum(aceptacion_muestra$resp_descarga_app == "Si")
 
 # Verosimilitud para distintos valores de theta
 theta_values <- seq(0, 1, length = 100)
@@ -551,15 +569,14 @@ posterior_values <- dbeta(theta_values, alpha_post, beta_post)
 df <- tibble(theta = theta_values, Prior = prior_values, Posterior = posterior_values)
 
 ggplot(df, aes(x = theta)) +
-  geom_line(aes(y = Prior), color = "blue", size = 1, linetype = "dashed") +
-  geom_line(aes(y = Posterior), color = "red", size = 1) +
+  geom_line(aes(y = Prior, color = "Previo"), size = 1, linetype = "dashed") +
+  geom_line(aes(y = Posterior, color = "Posterior"), size = 1) +
   labs(title = "Distribuciones Beta: Previa vs Posterior",
        x = "Tasa de aceptación",
        y = "Densidad") +
   theme_minimal() +
   theme(legend.position = "top") +
-  scale_color_manual(values = c("blue" = "blue", "red" = "red"))
-
+  scale_color_manual(values = c("Previo" = PALETA[1], "Posterior" = PALETA[2]))
 
 ### Pregunta 17
 
@@ -583,7 +600,7 @@ if (alpha_posterior > 1 && beta_posterior > 1) {
 
 # Mostrar resultados
 expected_value
-#Muestra el valor más probable de theta en la muestra.
+#Muestra el valor de la probabilidad media estimada de éxito, ponderada por la prior y los datos observados
 
 mode_value
 #Muestra el valor de theta más probable en la distribución posterior.
@@ -646,7 +663,7 @@ curve(dbeta(x, prior_alpha, prior_beta), from = 0, to = 1,
 y1 <- sum(aceptacion_muestra$resp_descarga_app == "Si")
 n1 <- nrow(aceptacion_muestra)
 
-# Segunda muestra (ya definida, no es necesario repetirla aquí)
+# Segunda muestra (ya definida, no sería realmente necesario repetirla aquí)
 y2 <- sum(aceptacion_muestra_2$resp_descarga_app == "Si")
 n2 <- nrow(aceptacion_muestra_2)
 
@@ -661,7 +678,7 @@ beta_2 <- beta_1 + n2 - y2
 # Ajustar la escala de los ejes para que se vea correctamente el gráfico
 x_range <- seq(0, 1, length.out = 100)
 
-# Graficar todas las distribuciones (previa, posterior 1ª muestra, posterior 2ª muestra)
+# Graficar todas las distribuciones (previa (en este comando), posterior 1ª muestra, posterior 2ª muestra)
 plot(x_range, dbeta(x_range, 1, 1), type = "l", col = "gray", lwd = 2, 
      main = "Distribuciones Previa y Posteriores", 
      ylab = "Densidad", xlab = "Tasa de Aceptación", 
@@ -799,7 +816,8 @@ mu_0 <- 247   # Media de la distribución previa
 sigma_0_sq <- 1156  # Varianza de la distribución previa
 
 # Parámetros de la verosimilitud
-sigma_sq <- sigma_0_sq  # Usamos la varianza de la población
+# Usamos la varianza de la población para actualizarla (reducirla)
+sigma_sq <- sigma_0_sq  
 
 # Cálculo de la media y varianza de la distribución posterior
 # Media posterior
