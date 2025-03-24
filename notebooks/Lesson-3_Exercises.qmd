@@ -864,7 +864,7 @@ plot(x_vals, prior, type = "l", col = "blue", lwd = 2,
 # Añadir la distribución posterior al gráfico
 lines(x_vals, posterior, col = "red", lwd = 2)
 
-# Añadir líneas verticales para los estimadores esperado y modal
+# Añadir líneas verticales para los estimadores esperado y modal.
 abline(v = estimador_esperado, col = "green", lwd = 2, lty = 2)  # Estimador esperado
 abline(v = estimador_modal, col = "purple", lwd = 2, lty = 2)  # Estimador modal
 
