@@ -163,7 +163,7 @@ Calcula o comprueba las siguientes respuestas usando comandos de R:
 -   ¿Cuál es el valor máximo de la función de densidad?
 
 ::: {#respuesta-1 .callout-note}
-
+```{r}
 #Para la distribución uniforme, el máximo está en cualquier valor y es simepre 1 o el valor máximo que se asigne.
 
 dunif(0.5, min = 0, max = 1)
@@ -173,7 +173,8 @@ dunif(0.5, min = 0, max = 1)
 dnorm(0, mean = 0, sd = 1)
 
 #En este caso, el valor máximo que alcanza la distribución es 0,399 (aprox 0,400)
-
+```
+:::
 
 ### Pregunta 2
 
@@ -181,6 +182,7 @@ dnorm(0, mean = 0, sd = 1)
 
 ::: {#respuesta-2 .callout-note}
 #En ambos casos, el valor de frencuencia máxima es la moda.En el caso de la uniforme, todo el rango tiene el mismo valor, así que no hay una moda estricta como tal. Para la normal, el valor de la moda y el de la media coinciden, por lo que tanto media como moda serán x=0.
+:::
 
 ### Pregunta 3
 
@@ -188,7 +190,8 @@ dnorm(0, mean = 0, sd = 1)
 
 ::: {#respuesta-3 .callout-note}
 
-#No, en la uniforme planteada, el 1 es el único valor posible (otra cosa sería que se redujese el rango, en cuyo caso, si el área no varía, podría ser mayor que 1). En cuanto a la normal, no puede ser mayor que 1 en tanto que la normal viene definida como 1/(sqrt(2*pi*s)*e((x-mu)^2)/(2*s)^2)), es decir, el valor teórico máximo será siempre 1.
+#No, en la uniforme planteada, el 1 es el único valor posible (otra cosa sería que se redujese el rango, en cuyo caso, si el área no varía, podría ser mayor que 1). En cuanto a la normal, esta tendrá valores mayores que uno cuando la varianza adquiera valores muy bajos.
+:::
 
 ### Pregunta 4
 
@@ -197,53 +200,50 @@ dnorm(0, mean = 0, sd = 1)
 *(Ejecuta `?cumsum` para consultar la ayuda de esa función).*
 
 ::: {#respuesta-4 .callout-note}
-
+```{r}
 # Se crean los datos para la CDF de una normal estándar (mu=0 y sigma=1)
 
-normal <- tibble(
-  variable = seq(-4, 4, by = 1e-3),
+normal_cdf <- tibble(
+  variable = seq(-4, 4, by = PREC),
   cdf = pnorm(variable, mean = 0, sd = 1)
 )
 
-# Se grafica la CDF
-
-ggplot(normal, aes(x = variable, y = cdf)) +
-  geom_line(color = "blue") +
-  labs(title = "Función de Distribución Acumulativa (CDF)",
+# Graficar la CDF
+ggplot(normal_cdf, aes(x = variable, y = cdf)) +
+  geom_line(color = PALETA[1], size = 1) +
+  labs(title = "Función de Distribución Acumulativa (CDF) de la Normal Estándar",
        x = "Valor",
-       y = "Probabilidad acumulada") +
-  theme_minimal()
-  
-##Para la pdf
+       y = "Probabilidad Acumulada")
 
 # Calcular la función de densidad de probabilidad (PDF)
-x_vals <- seq(-4, 4, length.out = 1000)
-pdf_vals <- dnorm(x_vals, mean = 0, sd = 1)
+normal_pdf <- tibble(
+  variable = seq(-4, 4, length.out = 1000),
+  pdf = dnorm(variable, mean = 0, sd = 1)
+)
 
 # Graficar la PDF
-ggplot(data = data.frame(x = x_vals, pdf = pdf_vals), aes(x = x, y = pdf)) +
-  geom_line(color = "blue", size = 1) +
+ggplot(normal_pdf, aes(x = variable, y = pdf)) +
+  geom_line(color = PALETA[2], size = 1) +
   labs(title = "Función de Densidad de Probabilidad (PDF) de la Normal Estándar",
        x = "Valor",
-       y = "Densidad de Probabilidad") +
-  theme_minimal()
+       y = "Densidad de Probabilidad")
+```
 
+
+:::
 
 ### Pregunta 5
 
 -   Calcula el valor esperado de la distribución normal.
 
 ::: {#respuesta-5 .callout-note}
-
+```{r}
 #El valor esperado es la esperanza o media:
 
 mean_normal <- integrate(function(x) x * dnorm(x), -Inf, Inf)$value
 mean_normal
-
-#También se puede calcular la cdf asociada a E:
-
-pnorm(0, mean = 0, sd = 1)
-
+```
+:::
 
 # Ejercicio 2
 
@@ -256,7 +256,7 @@ pnorm(0, mean = 0, sd = 1)
 *(Si no sabes qué limites utilizar, consulta la ayuda de `dbeta()`).*
 
 ::: {#respuesta-6 .callout-note}
-
+```{r}
 #Se crean los valores para beta
 
 beta_1_1 <- tibble(
@@ -267,7 +267,8 @@ beta_1_1 <- tibble(
 #Gráficamente
 ggplot(beta_1_1, aes(x = variable, y = densidad)) +
   geom_line(color = color_defecto)
-
+```
+:::
 
 ### Pregunta 7
 
@@ -276,6 +277,7 @@ ggplot(beta_1_1, aes(x = variable, y = densidad)) +
 ::: {#respuesta-7 .callout-note}
 
 #Esta función es no informativa, ya que es uniforme en [0,1].
+:::
 
 ## Parámetros de la distribución Beta
 
@@ -284,8 +286,7 @@ ggplot(beta_1_1, aes(x = variable, y = densidad)) +
 -   Prueba con diferentes valores de $\alpha$ y $\beta$.
 
 ::: {#respuesta-8 .callout-note}
-
-
+```{r}
 # Crear los datos con nuevos valores de alfa y beta
 data_beta <- tibble(
   x = rep(seq(0, 1, by = 1e-3), 4),
@@ -304,7 +305,8 @@ ggplot(data_beta, aes(x = x, y = y, color = curva)) +
        y = "Densidad",
        color = "Parámetros (α, β)") +  # Etiqueta de la leyenda
   theme_minimal()
-
+```
+:::
 
 
 ### Pregunta 9
@@ -313,27 +315,28 @@ ggplot(data_beta, aes(x = x, y = y, color = curva)) +
 
 ::: {#respuesta-9 .callout-note}
 
-#Se observa que, cuando a y b son pequeños, la curva acumula densidad en los extremos, mientras que cuando crecen lo hacen el centro, asemejándose a una normal como indica el TCL. Cuando a y B son 1, la curva es una uniforme.
+#Se observa que, cuando a y b son pequeños, la curva acumula densidad en los extremos, mientras que cuando crecen lo hacen el centro, asemejándose a una normal. Esto no es exactamente el TLC, pero es consistente con la propiedad de que una Beta con parámetros grandes concentra densidad en torno a la media.
+:::
 
 ### Pregunta 10
 
 -   ¿Qué ocurre cuando son iguales? ¿Y cuándo son distintos?
 
 ::: {#respuesta-10 .callout-note}
-
+```{r}
 # Crear los datos con diferentes valores de alfa y beta
 data_beta <- tibble(
   x = rep(seq(0, 1, by = 1e-3), 5),
   y = c(dbeta(seq(0, 1, by = 1e-3), 1, 1),   # Uniforme
         dbeta(seq(0, 1, by = 1e-3), 5, 5),   # Simétrica concentrada en el centro
         dbeta(seq(0, 1, by = 1e-3), 0.5, 0.5), # Forma en "U"
-        dbeta(seq(0, 1, by = 1e-3), 2, 5),   # Sesgo a la izquierda
-        dbeta(seq(0, 1, by = 1e-3), 5, 2)),  # Sesgo a la derecha
+        dbeta(seq(0, 1, by = 1e-3), 2, 5),   # Asimétrica a la izquierda
+        dbeta(seq(0, 1, by = 1e-3), 5, 2)),  # Asimétrica a la derecha
   curva = rep(c("α=1, β=1 (Uniforme)", 
                 "α=5, β=5 (Simétrica centrada (similar a normal))", 
                 "α=0.5, β=0.5 (Densidad en extremos)", 
-                "α=2, β=5 (Sesgo a la izquierda)", 
-                "α=5, β=2 (Sesgo a la derecha)"), 
+                "α=2, β=5 (Asimétrica a la izquierda)", 
+                "α=5, β=2 (Asimétrica a la derecha)"), 
               each = length(seq(0, 1, by = 1e-3)))
 )
 
@@ -343,8 +346,7 @@ ggplot(data_beta, aes(x = x, y = y, color = curva)) +
   labs(title = "Distribuciones Beta con Diferentes Parámetros",
        x = "x",
        y = "Densidad",
-       color = "Parámetros (α, β)") +  # Etiqueta de la leyenda
-  theme_minimal()
+       color = "Parámetros (α, β)")  # Etiqueta de la leyenda
  data_beta <- tibble(
   x = rep(seq(0, 1, by = 1e-3), 5),
   y = c(dbeta(seq(0, 1, by = 1e-3), 1, 1),   # α=1, β=1
@@ -357,23 +359,25 @@ ggplot(data_beta, aes(x = x, y = y, color = curva)) +
 )
 
 
-#Se observa que, cuando alfa=beta, hay simetría; cuando alfa<beta, hay sesgo a la izquierda; y cuando alfa>beta, a la derecha.
+#Se observa que, cuando alfa=beta, hay simetría; cuando alfa<beta, hay asimetría a la izquierda; y cuando alfa>beta, a la derecha.
+```
+:::
 
 ### Pregunta 11
 
 -   ¿Qué ocurre si tienen valores ligeramente superiores a 1?
 
 ::: {#respuesta-11 .callout-note}
-
+```{r}
 # Crear los datos con los nuevos valores de α y β
 data_beta <- tibble(
   x = rep(seq(0, 1, by = 1e-3), 3),
   y = c(dbeta(seq(0, 1, by = 1e-3), 1.05, 1.05),  # Casi uniforme
-        dbeta(seq(0, 1, by = 1e-3), 2, 1.05),    # Sesgo a la derecha
-        dbeta(seq(0, 1, by = 1e-3), 1.05, 2)),   # Sesgo a la izquierda
+        dbeta(seq(0, 1, by = 1e-3), 2, 1.05),    # Asimetría a la derecha
+        dbeta(seq(0, 1, by = 1e-3), 1.05, 2)),   # Asimetría a la izquierda
   curva = rep(c("α=1.05, β=1.05 (Casi uniforme)", 
-                "α=2, β=1.05 (Sesgo a la derecha)", 
-                "α=1.05, β=2 (Sesgo a la izquierda)"), 
+                "α=2, β=1.05 (Asimetría a la derecha)", 
+                "α=1.05, β=2 (Asimetría a la izquierda)"), 
               each = length(seq(0, 1, by = 1e-3)))
 )
 
@@ -386,7 +390,9 @@ ggplot(data_beta, aes(x = x, y = y, color = curva)) +
        color = "Parámetros (α, β)") +  # Etiqueta de la leyenda
   theme_minimal()
 
-#Cuando alfa=beta=ligeramente>1, se ve que la distribución empieza a tomar la forma acamapanada. Cuando solo uno de los parámtros es ligeramente>1, se observa que el sesgo de la función de exagera.
+#Cuando alfa=beta=ligeramente>1, se ve que la distribución empieza a tomar la forma acamapanada. Cuando solo uno de los parámtros es ligeramente>1, se observa que la asimetría de la función de exagera.
+```
+:::
 
 ### Pregunta 12
 
@@ -394,18 +400,18 @@ ggplot(data_beta, aes(x = x, y = y, color = curva)) +
 
 ::: {#respuesta-12 .callout-note}
 
-
+```{r}
 # Crear los datos con valores de alfa y beta ligeramente y moderadamente por debajo de 1
 data_beta <- tibble(
   x = rep(seq(0, 1, by = 1e-3), 4),
   y = c(dbeta(seq(0, 1, by = 1e-3), 0.9, 0.9),   # Forma en "U"
         dbeta(seq(0, 1, by = 1e-3), 0.5, 0.5),   # Forma en "U" más pronunciada
-        dbeta(seq(0, 1, by = 1e-3), 0.8, 0.5),   # Sesgo a la izquierda
-        dbeta(seq(0, 1, by = 1e-3), 0.5, 0.8)),  # Sesgo a la derecha
+        dbeta(seq(0, 1, by = 1e-3), 0.8, 0.5),   # Asimetría a la izquierda
+        dbeta(seq(0, 1, by = 1e-3), 0.5, 0.8)),  # Asimetría a la derecha
   curva = rep(c("α=0.9, β=0.9 (Forma en U)", 
                 "α=0.5, β=0.5 (Forma en U más pronunciada)", 
-                "α=0.8, β=0.5 (Sesgo a la izquierda)", 
-                "α=0.5, β=0.8 (Sesgo a la derecha)"), 
+                "α=0.8, β=0.5 (Asimetría a la izquierda)", 
+                "α=0.5, β=0.8 (Asimetría a la derecha)"), 
               each = length(seq(0, 1, by = 1e-3)))
 )
 
@@ -419,15 +425,16 @@ ggplot(data_beta, aes(x = x, y = y, color = curva)) +
   theme_minimal()
 
 # La curva toma la forma de U. La dirección del sesgo cuando alfa=/beta se invierte respecto a los valores >1.
+```
 
-
+```{r}
 # Crear los datos con un alfa mayor que 1 y un beta menor que 1, y viceversa
 data_beta <- tibble(
   x = rep(seq(0, 1, by = 1e-3), 2),
-  y = c(dbeta(seq(0, 1, by = 1e-3), 2, 0.5),   # α > 1, β < 1 (Sesgo a la derecha)
-        dbeta(seq(0, 1, by = 1e-3), 0.5, 2)),   # α < 1, β > 1 (Sesgo a la izquierda)
-  curva = rep(c("α=2, β=0.5 (Sesgo a la derecha)", 
-                "α=0.5, β=2 (Sesgo a la izquierda)"), 
+  y = c(dbeta(seq(0, 1, by = 1e-3), 2, 0.5),   # α > 1, β < 1 (Asimetría a la derecha)
+        dbeta(seq(0, 1, by = 1e-3), 0.5, 2)),   # α < 1, β > 1 (Asimetría a la izquierda)
+  curva = rep(c("α=2, β=0.5 (Asimetría a la derecha)", 
+                "α=0.5, β=2 (Asimetría a la izquierda)"), 
               each = length(seq(0, 1, by = 1e-3)))
 )
 
@@ -441,6 +448,8 @@ ggplot(data_beta, aes(x = x, y = y, color = curva)) +
   theme_minimal()
 
 #Cuando solo un parámetro es <1, la U "pierde" uno de sus extremos.
+```
+:::
 
 # Ejercicio 3
 
@@ -460,9 +469,11 @@ El jefe del departamento de analítica te asigna al proyecto y te pide que ajust
 ::: {#respuesta-13 .callout-note}
 
 #La tasa de aceptación se representa como un parámetro de probabilidad, theta, que indica la proporción de usuarios que descargarían la app.
-
+```{r}
 # Definimos el parámetro de la tasa de aceptación
-theta <- seq(0, 1, length = 100)
+theta <- seq(0, 1, by = PREC)
+```
+:::
 
 ### Pregunta 14
 
@@ -471,7 +482,7 @@ theta <- seq(0, 1, length = 100)
 *(Ajusta los ejes correctamente, si hace falta, como en la distribución uniforme).*
 
 ::: {#respuesta-14 .callout-note}
-
+```{r}
 # La distribución no informativa será una beta(1,1), que es uniforme en [0,1].
 
 # Distribución Beta(1,1) no informativa
@@ -480,15 +491,17 @@ prior <- dbeta(theta, shape1 = 1, shape2 = 1)
 # Gráfico de la distribución previa
 ggplot(data.frame(theta, prior), aes(x = theta, y = prior)) +
   geom_line(color = "blue", size = 1) +
-  labs(title = "Distribución Previa Beta(1,1)", x = "Tasa de aceptación (θ)", y = "Densidad")
-
+  labs(title = "Distribución Previa Beta(1,1)", x = "Tasa de aceptación (θ)", y = "Densidad")+
+  ylim(0, 1)
+```
+:::
 
 ### Pregunta 15
 
 -   Supón que $y$ es el número de usuarios/as que han respondido que "Sí" descargarían la app. Formula la verosimilitud del modelo.
 
 ::: {#respuesta-15 .callout-note}
-
+```{r}
 # La verosimilitud del modelo sigue una distribución binomial, ya que es la respuesta binaria del número de personas que descargarían la app.
 
 # Función de verosimilitud binomial
@@ -496,6 +509,11 @@ likelihood <- function(theta, y, n) {
   return(dbinom(y, size = n, prob = theta))
 }
 
+plot(1, type="n", axes=FALSE, xlab="", ylab="") # Crea un lienzo vacío
+text(1, 1, expression(L(theta ~ "|" ~ y ~ "," ~ n) == C(n, y) * theta^y * (1 - theta)^(n - y)), cex=1.5)
+
+
+```
 
 ## Ajuste del modelo
 
@@ -510,6 +528,8 @@ aceptacion_muestra <- tibble(
   )
 )
 ```
+
+```{r}
 #El modelo quedaría como:
 
 # Función de verosimilitud binomial
@@ -518,7 +538,7 @@ likelihood <- function(theta, y, n) {
 }
 
 # Datos de la muestra
-n <- 22
+n <- aceptacion_muestra |> nrow()
 y <- sum(aceptacion_muestra$resp_descarga_app == "Si")
 
 # Verosimilitud para distintos valores de theta
@@ -526,26 +546,21 @@ theta_values <- seq(0, 1, length = 100)
 likelihood_values <- sapply(theta_values, likelihood, y = y, n = n)
 
 # Graficamos la verosimilitud
-library(ggplot2)
 ggplot(data.frame(theta = theta_values, likelihood = likelihood_values), aes(x = theta, y = likelihood)) +
   geom_line(color = "purple", size = 1) +
   labs(title = "Verosimilitud de la tasa de aceptación (θ)", x = "Tasa de aceptación (θ)", y = "Verosimilitud") +
   theme_minimal()
+```
+
+
+:::
 
 ### Pregunta 16
 
 -   Obtén, en base a estos datos, la distribución posterior de la tasa de aceptación (en forma analítica), y represéntala junto a la distribución previa.
 
 ::: {#respuesta-16 .callout-note}
-
-# Datos
-aceptacion_muestra <- tibble(
-  id_participante   = 1:22,
-  resp_descarga_app = c(
-    "Si", "Si", "No", "No", "Si", "Si", "Si", "Si", "No", "Si", "Si",
-    "Si", "Si", "Si", "Si", "Si", "No", "Si", "No", "Si", "Si", "Si"
-  )
-)
+```{r}
 
 # Contar cuántos "Sí" y "No" hay
 y <- sum(aceptacion_muestra$resp_descarga_app == "Si")
@@ -577,6 +592,9 @@ ggplot(df, aes(x = theta)) +
   theme_minimal() +
   theme(legend.position = "top") +
   scale_color_manual(values = c("Previo" = PALETA[1], "Posterior" = PALETA[2]))
+```
+
+:::
 
 ### Pregunta 17
 
@@ -585,7 +603,7 @@ ggplot(df, aes(x = theta)) +
 *(Nota: Ten en cuenta la "precisión" al calcular el "peso" de cada muestra.)*
 
 ::: {#respuesta-17 .callout-note}
-
+```{r}
 # Valor esperado de la distribución posterior
 expected_value <- alpha_posterior / (alpha_posterior + beta_posterior)
 
@@ -604,6 +622,8 @@ expected_value
 
 mode_value
 #Muestra el valor de theta más probable en la distribución posterior.
+```
+:::
 
 ## Ajuste con una nueva muestra
 
@@ -633,6 +653,7 @@ aceptacion_muestra_2 <- tibble(
 -   ¿Qué distribución previa utilizarías en esta ocasión? Formúlala.
 
 ::: {#respuesta-18 .callout-note}
+```{r}
 # Se podría emplear la posterior del anterior ejercicio como prior de este, ya que se actualizaría la información sobre la misma.
 
 # Datos de la primera muestra (ya conocidos)
@@ -651,32 +672,15 @@ prior_beta <- beta_posterior_1
 curve(dbeta(x, prior_alpha, prior_beta), from = 0, to = 1, 
       main = "Distribución previa (Posterior de la muestra anterior)",
       ylab = "Densidad", xlab = "Tasa de aceptación")
-
+```
+:::
 
 ### Pregunta 19
 
 -   Obtén la distribución posterior analítica después de esta segunda muestra, represéntala junto con las dos distribuciones anteriores, y obtén los estimadores posteriores esperado y modal.
 
 ::: {#respuesta-19 .callout-note}
-
-# Número de respuestas "Sí" en la primera muestra
-y1 <- sum(aceptacion_muestra$resp_descarga_app == "Si")
-n1 <- nrow(aceptacion_muestra)
-
-# Segunda muestra (ya definida, no sería realmente necesario repetirla aquí)
-y2 <- sum(aceptacion_muestra_2$resp_descarga_app == "Si")
-n2 <- nrow(aceptacion_muestra_2)
-
-# Parámetros de la distribución posterior después de la primera muestra
-alpha_1 <- 1 + y1
-beta_1 <- 1 + n1 - y1
-
-# Actualización de los parámetros con la segunda muestra
-alpha_2 <- alpha_1 + y2
-beta_2 <- beta_1 + n2 - y2
-
-# Ajustar la escala de los ejes para que se vea correctamente el gráfico
-x_range <- seq(0, 1, length.out = 100)
+```{r}
 
 # Graficar todas las distribuciones (previa (en este comando), posterior 1ª muestra, posterior 2ª muestra)
 plot(x_range, dbeta(x_range, 1, 1), type = "l", col = "gray", lwd = 2, 
@@ -689,7 +693,7 @@ lines(x_range, dbeta(x_range, alpha_1, beta_1), col = "red", lwd = 2)
 lines(x_range, dbeta(x_range, alpha_2, beta_2), col = "blue", lwd = 2)
 
 # Agregar leyenda
-legend("topright", legend = c("Previo (Beta(1,1))", "Posterior 1ª Muestra", "Posterior 2ª Muestra"),
+legend("topleft", legend = c("Previo (Beta(1,1))", "Posterior 1ª Muestra", "Posterior 2ª Muestra"),
        col = c("gray", "red", "blue"), lwd = 2)
 
 # Estimadores posterior (Esperado y Modal)
@@ -703,6 +707,8 @@ if (alpha_2 > 1 && beta_2 > 1) {
 
 # Mostrar resultados
 list(esperado = esperado, modal = modal)
+```
+:::
 
 ## Ajuste con las muestras colapsadas
 
@@ -721,6 +727,7 @@ aceptacion_muestra_total <- bind_rows(
 -   Obtén la distribución posterior analítica después de esta segunda muestra, represéntala junto con las distribuciones anteriores, y obtén los estimadores posteriores esperado y modal.
 
 ::: {#respuesta-20 .callout-note}
+```{r}
 # Calcular el número de respuestas "Sí" y el tamaño total
 y_total <- sum(aceptacion_muestra_total$resp_descarga_app == "Si")
 n_total <- nrow(aceptacion_muestra_total)
@@ -747,7 +754,7 @@ lines(x_range, dbeta(x_range, alpha_2, beta_2), col = "blue", lwd = 2)
 lines(x_range, dbeta(x_range, alpha_total, beta_total), col = "green", lwd = 2)
 
 # Leyenda
-legend("topright", legend = c("Previo", "Posterior 1ª Muestra", "Posterior 2ª Muestra", "Posterior Total"),
+legend("topleft", legend = c("Previo", "Posterior 1ª Muestra", "Posterior 2ª Muestra", "Posterior Total"),
        col = c("gray", "red", "blue", "green"), lwd = 2)
 
 # Estimadores posterior
@@ -756,7 +763,8 @@ modal_total <- ifelse(alpha_total > 1 & beta_total > 1, (alpha_total - 1) / (alp
 
 # Resultados
 list(esperado = esperado_total, modal = modal_total)
-
+```
+:::
 
 ### Pregunta 21
 
@@ -764,6 +772,7 @@ list(esperado = esperado_total, modal = modal_total)
 
 ::: {#respuesta-21 .callout-note}
 # La conclusión es que el integrar los datos secuancialmente o colapsados lleva a las mismas conclusiones ya que, el Análisis Bayesiano, a diferencia del Frecuantista, permite una actualización de parámetros ya estimados cuando se tiene acceso a más información.
+:::
 
 # Ejercicio 4
 
@@ -803,6 +812,7 @@ clase_2 <- tibble(
 -   Determina la verosimilitud y las distribuciones previa y posterior de la media, asumiendo que la varianza de la verosimilitud es la varianza de los datos. Justifica cómo has obtenido los parámetros de la distribución posterior (usa 2 decimales de precisión).
 
 ::: {#respuesta-22 .callout-note}
+```{r}
 #Cálculo de las medias muestrales
 mean_clase_1 <- mean(clase_1$tiempo)
 mean_clase_2 <- mean(clase_2$tiempo)
@@ -820,17 +830,26 @@ sigma_0_sq <- 1156  # Varianza de la distribución previa
 sigma_sq <- sigma_0_sq  
 
 # Cálculo de la media y varianza de la distribución posterior
-# Media posterior
+# Ambos parámetros se definen por:
+plot(1, type="n", axes=FALSE, xlab="", ylab="", xlim=c(0, 10), ylim=c(0, 10))
+text(5, 9, expression(mu[post] == frac(mu[0], sigma[0]^2) + frac(bar(x)[1] * n[1], sigma^2) / (frac(1, sigma[0]^2) + frac(n[1], sigma^2))), cex=1.2)
+text(5, 6, expression(sigma[post]^2 == frac(1, frac(1, sigma[0]^2) + frac(n[1], sigma^2))), cex=1.2)
+title("Fórmulas Posteriores")
+
+# Media posterior: La media posterior se obtiene mediante una combinación ponderada de la media de la distribución previa y la media de los datos observados donde los pesos dependen de la varianza de cada fuente de información.
+
 mu_post <- (mu_0 / sigma_0_sq + mean_clase_1 * n_clase_1 / sigma_sq) / 
            (1 / sigma_0_sq + n_clase_1 / sigma_sq)
 
 # Varianza posterior
+#La varianza posterior se ve estimada por la siguiente fórmula, esperandos siempre que se reduzca al incorporar más información.
 sigma_post_sq <- 1 / (1 / sigma_0_sq + n_clase_1 / sigma_sq)
 
 # Mostrar los resultados
 cat("La media posterior es:", round(mu_post, 2), "\n")
 cat("La varianza posterior es:", round(sigma_post_sq, 2), "\n")
-
+```
+:::
 
 
 
@@ -839,38 +858,35 @@ cat("La varianza posterior es:", round(sigma_post_sq, 2), "\n")
 -   Representa las distribuciones previa y posterior de la media; considera un eje que cubra 4 desviaciones típicas a cada lado de la media de la distribución previa. Obten el estimador esperado y modal a partir de esta distribución y compáralos con la solución analítica de la pregunta anterior.
 
 ::: {#respuesta-23 .callout-note}
-# Calcular estimadores
-estimador_esperado <- mu_post  # La media posterior es el estimador esperado
-estimador_modal <- mu_post  # La moda de la normal también es la media posterior
+```{r}
+#La media vendrá definida por esta ecuación
+plot(1, type="n", axes=FALSE, xlab="", ylab="", xlim=c(0, 10), ylim=c(0, 10))
+text(5, 7, expression(E(mu) == integral(x * p(x) * dx)), cex=1.5)
+title("Cálculo de la Media Posterior")
 
-# Ajuste de los ejes y representación gráfica de las distribuciones previa y posterior
+# Calcular el estimador esperado (media posterior) con integración numérica
+estimador_esperado <- sum(x_vals * posterior * PREC) / sum(posterior * PREC)
+estimador_esperado
 
-# Definir el rango de los ejes (4 desviaciones típicas alrededor de la media previa)
-x_vals <- seq(mu_0 - 4 * sqrt(sigma_0_sq), mu_0 + 4 * sqrt(sigma_0_sq), length.out = 100)
+#La moda será el máximo de la distribución
+estimador_modal <- x_vals[which.max(posterior)]
+estimador_modal
 
-# Distribución previa (normal)
-prior <- dnorm(x_vals, mean = mu_0, sd = sqrt(sigma_0_sq))
-
-# Distribución posterior (normal)
-posterior <- dnorm(x_vals, mean = mu_post, sd = sqrt(sigma_post_sq))
-
-# Graficar la distribución previa y posterior
+# Representación gráfica con los nuevos valores
 plot(x_vals, prior, type = "l", col = "blue", lwd = 2, 
      main = "Distribución Previa y Posterior de la Media", 
      xlab = "Media de Tiempo de Lectura", ylab = "Densidad",
      xlim = c(mu_0 - 4 * sqrt(sigma_0_sq), mu_0 + 4 * sqrt(sigma_0_sq)),
      ylim = c(0, max(c(prior, posterior)) + 0.01))
 
-# Añadir la distribución posterior al gráfico
 lines(x_vals, posterior, col = "red", lwd = 2)
+abline(v = estimador_esperado, col = "green", lwd = 2, lty = 2)  # Media posterior
+abline(v = estimador_modal, col = "purple", lwd = 2, lty = 2)  # Moda posterior
 
-# Añadir líneas verticales para los estimadores esperado y modal.
-abline(v = estimador_esperado, col = "green", lwd = 2, lty = 2)  # Estimador esperado
-abline(v = estimador_modal, col = "purple", lwd = 2, lty = 2)  # Estimador modal
-
-# Añadir leyenda
 legend("topright", legend = c("Distribución Previa", "Distribución Posterior", 
                               "Estimador Esperado", "Estimador Modal"),
        col = c("blue", "red", "green", "purple"), lwd = c(2, 2, 2, 2), lty = c(1, 1, 2, 2))
 
-#Tanto el valor esperado como la moda coinciden en la distribución normal y con los valores calculados mediante la solución analítica.
+#Se observa una ligera discrepancia entre la media (que coincide con la solución analítica) y la moda, pero es tan pequeña que no se llega a apreciar en el gráfico.
+```
+::: 
