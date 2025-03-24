@@ -239,9 +239,11 @@ ggplot(normal_pdf, aes(x = variable, y = pdf)) +
 ::: {#respuesta-5 .callout-note}
 ```{r}
 #El valor esperado es la esperanza o media:
-
-mean_normal <- integrate(function(x) x * dnorm(x), -Inf, Inf)$value
-mean_normal
+x_valsn <- seq(-4, 4, by = PREC)  
+densidad <- dnorm(x_valsn, mean = 0, sd = 1)
+mean_normal <- sum(x_valsn * densidad * PREC) / sum(densidad * PREC)
+print(mean_normal)
+#El valor esperado es virtualmente 0
 ```
 :::
 
