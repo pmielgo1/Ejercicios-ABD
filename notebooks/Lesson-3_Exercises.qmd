@@ -190,7 +190,7 @@ dnorm(0, mean = 0, sd = 1)
 
 ::: {#respuesta-3 .callout-note}
 
-#No, en la uniforme planteada, el 1 es el único valor posible (otra cosa sería que se redujese el rango, en cuyo caso, si el área no varía, podría ser mayor que 1). En cuanto a la normal, esta tendrá valores mayores que uno cuando la varianza adquiera valores muy bajos.
+#No, en la uniforme planteada, el 1 es el único valor posible (otra cosa sería que se redujese el rango, en cuyo caso, si el área no varía, podría ser mayor que 1). En cuanto a la normal, esta tendrá valores mayores que uno cuando la varianza adquiera valores muy bajos ya que el área bajo la curva debe ser siempre 1. Cabe destacar que el eje Y representa densidad, no probabilidad, por lo que sus valores pueden ser mayores a 1 sin problema.
 :::
 
 ### Pregunta 4
@@ -849,6 +849,10 @@ mean_clase_2 <- mean(clase_2$tiempo)
 n_clase_1 <- length(clase_1$tiempo)
 n_clase_2 <- length(clase_2$tiempo)
 
+#Cálculo de los parámetros conjuntos
+mean_total <- (mean_clase_1 * n_clase_1 + mean_clase_2 * n_clase_2) / (n_clase_1 + n_clase_2)
+n_total <- n_clase_1 + n_clase_2
+
 # Parámetros de la distribución previa
 mu_0 <- 247   # Media de la distribución previa
 sigma_0_sq <- 1156  # Varianza de la distribución previa
@@ -866,18 +870,17 @@ title("Fórmulas Posteriores")
 
 # Media posterior: La media posterior se obtiene mediante una combinación ponderada de la media de la distribución previa y la media de los datos observados donde los pesos dependen de la varianza de cada fuente de información.
 
-mu_post <- (mu_0 / sigma_0_sq + mean_clase_1 * n_clase_1 / sigma_sq) / 
-           (1 / sigma_0_sq + n_clase_1 / sigma_sq)
+mu_post <- (mu_0 / sigma_0_sq + mean_total * n_total / sigma_sq) / 
+           (1 / sigma_0_sq + n_total / sigma_sq)
 
 # Varianza posterior
 #La varianza posterior se ve estimada por la siguiente fórmula, esperandos siempre que se reduzca al incorporar más información.
-sigma_post_sq <- 1 / (1 / sigma_0_sq + n_clase_1 / sigma_sq)
+sigma_post_sq <- 1 / (1 / sigma_0_sq + n_total/ sigma_sq)
 
 # Mostrar los resultados
 cat("La media posterior es:", round(mu_post, 2), "\n")
 cat("La varianza posterior es:", round(sigma_post_sq, 2), "\n")
 
-#Se observa alguna discrepancia con la solución analítica, tal vez debida al acotamiento en la integral o a errores de redondeo (?)
 ```
 :::
 
@@ -945,6 +948,6 @@ cat("Varianza posterior integrada:", round(sigma_post_sq_integrado, 2), "\n")
 cat("Estimador modal (moda posterior):", round(estimador_modal, 2), "\n")
 
 
-#Se observa una ligera discrepancia entre llos valores anteriormente calculados y los nuevos.
+#Los valores coinciden con la solución analítica. La discrepancia mínima media-moda puede deberse a efectos del cálculo.
 ```
 ::: 
