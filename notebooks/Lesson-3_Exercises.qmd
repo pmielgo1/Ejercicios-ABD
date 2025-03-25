@@ -876,6 +876,8 @@ sigma_post_sq <- 1 / (1 / sigma_0_sq + n_clase_1 / sigma_sq)
 # Mostrar los resultados
 cat("La media posterior es:", round(mu_post, 2), "\n")
 cat("La varianza posterior es:", round(sigma_post_sq, 2), "\n")
+
+#Se observa alguna discrepancia con la solución analítica, tal vez debida al acotamiento en la integral o a errores de redondeo (?)
 ```
 :::
 
@@ -893,34 +895,54 @@ text(5, 7, expression(E(mu) == integral(x * p(x) * dx)), cex=1.5)
 title("Cálculo de la Media Posterior")
 
 # Generar la secuencia de x_vals
-x_vals <- seq(mu_0 - 4 * sqrt(sigma_0_sq), mu_0 + 4 * sqrt(sigma_0_sq), length.out = 1000)
+x_vals <- seq(mu_0 - 4 * sqrt(sigma_0_sq), mu_0 + 4 * sqrt(sigma_0_sq), by=PREC)
 
-# Asegurarse que 'prior' y 'posterior' tengan la misma longitud que x_vals
+# Distribución previa
 prior <- dnorm(x_vals, mean = mu_0, sd = sqrt(sigma_0_sq))
-posterior <- dnorm(x_vals, mean = mu_0, sd = sqrt(sigma_0_sq)) * prior
 
-# Calcular el estimador esperado (media posterior) con integración numérica
-estimador_esperado <- sum(x_vals * posterior * PREC) / sum(posterior * PREC)
-estimador_esperado
+# Cálculo de la verosimilitud
+mean_total <- (mean_clase_1 * n_clase_1 + mean_clase_2 * n_clase_2) / (n_clase_1 + n_clase_2)
+n_total <- n_clase_1 + n_clase_2  # Número total de observaciones
+likelihood <- dnorm(x_vals, mean = mean_total, sd = sqrt(sigma_sq / n_total))
 
-# La moda será el máximo de la distribución posterior
-estimador_modal <- x_vals[which.max(posterior)]
-estimador_modal
+# Distribución posterior
+posterior <- prior * likelihood  
 
-# Representación gráfica con los nuevos valores
-plot(x_vals, prior, type = "l", col = "blue", lwd = 2, 
+# df con los valores de la distribución posterior
+normal <- data.frame(x = x_vals, densidad = posterior)
+
+# "Normalizar" la distribución posterior (que el área sea 1)
+integral_total <- normal |> summarize(integral = sum(densidad) * PREC) |> pull(integral)
+normal <- normal |> mutate(densidad = densidad / integral_total)
+
+# Cálculo de la media posterior por integración numérica
+mu_post_integrado <- normal |> summarize(media_post = sum(x * densidad) * PREC) |> pull(media_post)
+
+# Cálculo de la varianza posterior por integración numérica
+sigma_post_sq_integrado <- normal |> summarize(var_post = sum((x - mu_post_integrado)^2 * densidad) * PREC) |> pull(var_post)
+
+# Cálculo de la moda posterior (el valor de x donde la posterior es máxima)
+estimador_modal <- normal |> filter(densidad == max(densidad)) |> pull(x)
+
+# Representación gráfica
+plot(normal$x, prior, type = "l", col = "blue", lwd = 2, 
      main = "Distribución Previa y Posterior de la Media", 
      xlab = "Media de Tiempo de Lectura", ylab = "Densidad",
      xlim = c(mu_0 - 4 * sqrt(sigma_0_sq), mu_0 + 4 * sqrt(sigma_0_sq)),
-     ylim = c(0, max(c(prior, posterior)) + 0.01))
+     ylim = c(0, max(normal$densidad) + 0.01))
 
-lines(x_vals, posterior, col = "red", lwd = 2)
-abline(v = estimador_esperado, col = "green", lwd = 2, lty = 2)  # Media posterior
+lines(normal$x, normal$densidad, col = "red", lwd = 2)
+abline(v = mu_post_integrado, col = "green", lwd = 2, lty = 2)  # Media posterior
 abline(v = estimador_modal, col = "purple", lwd = 2, lty = 2)  # Moda posterior
 
 legend("topright", legend = c("Distribución Previa", "Distribución Posterior", 
-                              "Estimador Esperado", "Estimador Modal"),
+                              "Media Posterior (Integrada)", "Moda Posterior"),
        col = c("blue", "red", "green", "purple"), lwd = c(2, 2, 2, 2), lty = c(1, 1, 2, 2))
+
+# Imprimir valores estimados
+cat("Estimador esperado (media posterior integrada):", round(mu_post_integrado, 2), "\n")
+cat("Varianza posterior integrada:", round(sigma_post_sq_integrado, 2), "\n")
+cat("Estimador modal (moda posterior):", round(estimador_modal, 2), "\n")
 
 
 #Se observa una ligera discrepancia entre llos valores anteriormente calculados y los nuevos.
