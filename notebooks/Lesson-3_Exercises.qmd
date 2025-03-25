@@ -607,15 +607,15 @@ ggplot(df, aes(x = theta)) +
 ::: {#respuesta-17 .callout-note}
 ```{r}
 # Valor esperado de la distribución posterior
-expected_value <- alpha_posterior / (alpha_posterior + beta_posterior)
+expected_value <- alpha_post / (alpha_post + beta_post)
 
 # Moda de la distribución posterior (siempre que alpha > 1 y beta > 1, por la forma de la distribución)
 
-if (alpha_posterior > 1 && beta_posterior > 1) {
-  mode_value <- (alpha_posterior - 1) / (alpha_posterior + beta_posterior - 2)
+if (alpha_post > 1 && beta_post > 1) {
+  mode_value <- (alpha_post - 1) / (alpha_post + beta_post - 2)
 } else {
   # Si no se puede calcular la moda, la moda será un valor en los extremos
-  mode_value <- ifelse(alpha_posterior > beta_posterior, 1, 0)
+  mode_value <- ifelse(alpha_post > beta_post, 1, 0)
 }
 
 # Mostrar resultados
@@ -684,31 +684,56 @@ curve(dbeta(x, prior_alpha, prior_beta), from = 0, to = 1,
 ::: {#respuesta-19 .callout-note}
 ```{r}
 
-# Graficar todas las distribuciones (previa (en este comando), posterior 1ª muestra, posterior 2ª muestra)
-plot(x_range, dbeta(x_range, 1, 1), type = "l", col = "gray", lwd = 2, 
-     main = "Distribuciones Previa y Posteriores", 
-     ylab = "Densidad", xlab = "Tasa de Aceptación", 
-     xlim = c(0, 1), ylim = c(0, max(c(dbeta(x_range, 1, 1), dbeta(x_range, alpha_1, beta_1), dbeta(x_range, alpha_2, beta_2)))))
+library(ggplot2)
 
-# Graficar las distribuciones posteriores
-lines(x_range, dbeta(x_range, alpha_1, beta_1), col = "red", lwd = 2)
-lines(x_range, dbeta(x_range, alpha_2, beta_2), col = "blue", lwd = 2)
+# Número de respuestas "Sí" en la primera muestra
+y1 <- sum(aceptacion_muestra$resp_descarga_app == "Si")
+n1 <- nrow(aceptacion_muestra)
 
-# Agregar leyenda
-legend("topleft", legend = c("Previo (Beta(1,1))", "Posterior 1ª Muestra", "Posterior 2ª Muestra"),
-       col = c("gray", "red", "blue"), lwd = 2)
+# Número de respuestas "Sí" en la segunda muestra
+y2 <- sum(aceptacion_muestra_2$resp_descarga_app == "Si")
+n2 <- nrow(aceptacion_muestra_2)
 
-# Estimadores posterior (Esperado y Modal)
+# Parámetros de la distribución posterior después de la primera muestra
+alpha_1 <- 1 + y1
+beta_1 <- 1 + n1 - y1
+
+# Actualización de los parámetros con la segunda muestra
+alpha_2 <- alpha_1 + y2
+beta_2 <- beta_1 + n2 - y2
+
+# Rango de x
+x_range <- seq(0, 1, by=PREC)
+
+# Crear un dataframe con todas las distribuciones
+data <- data.frame(
+  x = rep(x_range, 3),
+  y = c(dbeta(x_range, 1, 1), 
+        dbeta(x_range, alpha_1, beta_1),
+        dbeta(x_range, alpha_2, beta_2)),
+  Distribución = factor(rep(c("Previo (Beta(1,1))", 
+                              "Posterior 1ª Muestra", 
+                              "Posterior 2ª Muestra"), 
+                            each = length(x_range)))
+)
+
+# Graficar con ggplot2
+ggplot(data, aes(x = x, y = y, color = Distribución)) +
+  geom_line(size = 1) +
+  scale_color_manual(values = c("gray", "red", "blue")) +
+  labs(title = "Distribuciones Previa y Posteriores",
+       x = "Tasa de Aceptación",
+       y = "Densidad") +
+  theme_minimal()
+
+# Estimadores posteriores
 esperado <- alpha_2 / (alpha_2 + beta_2)
-
-if (alpha_2 > 1 && beta_2 > 1) {
-  modal <- (alpha_2 - 1) / (alpha_2 + beta_2 - 2)
-} else {
-  modal <- NA  # La moda no está definida si alguno de los parámetros es menor que 1
-}
+modal <- ifelse(alpha_2 > 1 & beta_2 > 1, 
+                (alpha_2 - 1) / (alpha_2 + beta_2 - 2), NA)
 
 # Mostrar resultados
 list(esperado = esperado, modal = modal)
+
 ```
 :::
 
