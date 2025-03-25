@@ -900,11 +900,12 @@ prior <- dnorm(x_vals, mean = mu_0, sd = sqrt(sigma_0_sq))
 posterior <- dnorm(x_vals, mean = mu_0, sd = sqrt(sigma_0_sq)) * prior
 
 # Calcular el estimador esperado (media posterior) con integración numérica
-PREC <- diff(x_vals)[1]  # Suponiendo que el paso entre x_vals es constante
 estimador_esperado <- sum(x_vals * posterior * PREC) / sum(posterior * PREC)
+estimador_esperado
 
 # La moda será el máximo de la distribución posterior
 estimador_modal <- x_vals[which.max(posterior)]
+estimador_modal
 
 # Representación gráfica con los nuevos valores
 plot(x_vals, prior, type = "l", col = "blue", lwd = 2, 
@@ -922,6 +923,6 @@ legend("topright", legend = c("Distribución Previa", "Distribución Posterior",
        col = c("blue", "red", "green", "purple"), lwd = c(2, 2, 2, 2), lty = c(1, 1, 2, 2))
 
 
-#Se observa una ligera discrepancia entre la media (que coincide con la solución analítica) y la moda, pero es tan pequeña que no se llega a apreciar en el gráfico.
+#Se observa una ligera discrepancia entre llos valores anteriormente calculados y los nuevos.
 ```
 ::: 
