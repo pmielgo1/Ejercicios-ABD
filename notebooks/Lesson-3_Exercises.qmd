@@ -268,7 +268,8 @@ beta_1_1 <- tibble(
 
 #Gráficamente
 ggplot(beta_1_1, aes(x = variable, y = densidad)) +
-  geom_line(color = color_defecto)
+  geom_line(color = color_defecto) +
+  ylim(0,1)
 ```
 :::
 
@@ -891,13 +892,19 @@ plot(1, type="n", axes=FALSE, xlab="", ylab="", xlim=c(0, 10), ylim=c(0, 10))
 text(5, 7, expression(E(mu) == integral(x * p(x) * dx)), cex=1.5)
 title("Cálculo de la Media Posterior")
 
-# Calcular el estimador esperado (media posterior) con integración numérica
-estimador_esperado <- sum(x_vals * posterior * PREC) / sum(posterior * PREC)
-estimador_esperado
+# Generar la secuencia de x_vals
+x_vals <- seq(mu_0 - 4 * sqrt(sigma_0_sq), mu_0 + 4 * sqrt(sigma_0_sq), length.out = 1000)
 
-#La moda será el máximo de la distribución
+# Asegurarse que 'prior' y 'posterior' tengan la misma longitud que x_vals
+prior <- dnorm(x_vals, mean = mu_0, sd = sqrt(sigma_0_sq))
+posterior <- dnorm(x_vals, mean = mu_0, sd = sqrt(sigma_0_sq)) * prior
+
+# Calcular el estimador esperado (media posterior) con integración numérica
+PREC <- diff(x_vals)[1]  # Suponiendo que el paso entre x_vals es constante
+estimador_esperado <- sum(x_vals * posterior * PREC) / sum(posterior * PREC)
+
+# La moda será el máximo de la distribución posterior
 estimador_modal <- x_vals[which.max(posterior)]
-estimador_modal
 
 # Representación gráfica con los nuevos valores
 plot(x_vals, prior, type = "l", col = "blue", lwd = 2, 
@@ -913,6 +920,7 @@ abline(v = estimador_modal, col = "purple", lwd = 2, lty = 2)  # Moda posterior
 legend("topright", legend = c("Distribución Previa", "Distribución Posterior", 
                               "Estimador Esperado", "Estimador Modal"),
        col = c("blue", "red", "green", "purple"), lwd = c(2, 2, 2, 2), lty = c(1, 1, 2, 2))
+
 
 #Se observa una ligera discrepancia entre la media (que coincide con la solución analítica) y la moda, pero es tan pequeña que no se llega a apreciar en el gráfico.
 ```
