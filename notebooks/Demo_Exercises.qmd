@@ -19,7 +19,7 @@ Este es un ejercicio dificilísimo de Análisis Bayesiano de Datos.
 #| message: false
 
 # Paquetes:
-# library(tidyverse)
+library(tidyverse)
 ```
 
 # Ejercicio 1
@@ -39,10 +39,10 @@ tibble(
 
 ### Pregunta 1
 
--   ¿A qué se parece una distribución normal?
+-   ¿A qué se parece una distribución normal??????????????????????
 
 ::: {#respuesta-1 .callout-note}
-:::
+:::#A una campana gaussiana
 
 ### Pregunta 2
 
