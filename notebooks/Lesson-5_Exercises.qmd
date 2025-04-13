@@ -131,8 +131,9 @@ resultados_analiticos<-tibble(
   n = c(n_1, n_2),
   Mu_Posterior = c(mu_post_1, mu_post_2),
   Sigma2_Posterior = c(sigma2_post_1, sigma2_post_2)
-  
-)
+  )
+
+resultados_analiticos
 
 ```
 
@@ -192,17 +193,12 @@ resultados_simulados <- tibble(
 # Unimos con los resultados analíticos del ejercicio 1
 comparacion_final <- resultados_analiticos %>%
   select(Clase, Mu_Posterior, Sigma2_Posterior) %>%
-  left_join(resultados_simulados, by = "Clase") %>%
-  mutate(
-    Mu_Posterior    = Mu_Posterior,
-    Sigma2_Posterior = Sigma2_Posterior,
-    Media_Simulada  = Media_Simulada,
-    Var_Simulada    = Var_Simulada
-  )
+  left_join(resultados_simulados, by = "Clase")
+
 
 comparacion_final
 
-#Se observa que los valores son casi ide´neticos para los 4 parámetros. La variabilidad onbservada podría deberse al muestreo aleatorio que se hace cuando se extraen las 500 submuestras para la aproximación de MC.
+#Se observa que los valores son casi similares para los 4 parámetros. La variabilidad onbservada podría deberse al muestreo aleatorio que se hace cuando se extraen las 500 submuestras para la aproximación de MC.
 
 ```
 
@@ -220,8 +216,9 @@ comparacion_final
 n_sim <- 500
 z_975 <- 1.96
 
-# Calculamos MCSE y el IC para cada clase
-ic_mc <- tibble(
+# Calculamos MCSE y el IC para cada clase, aprovechando la estructura del tibble para hacer los propios cálculos.
+
+parametros_MC <- tibble(
   Clase = c("Clase 1", "Clase 2"),
   Media_Simulada = c(mean(muestras_clase_1), mean(muestras_clase_2)),
   Desv_Simulada = c(sd(muestras_clase_1), sd(muestras_clase_2)),
@@ -232,10 +229,7 @@ ic_mc <- tibble(
   Mu_Analitica = c(mu_post_1, mu_post_2),
   Dentro_Intervalo = Mu_Analitica >= IC_Inf & Mu_Analitica <= IC_Sup
 )
-
-# Redondeamos para mostrar mejor
-ic_mc %>%
-  mutate(across(where(is.numeric), round, 3))
+parametros_MC
 
 ```
 
@@ -252,7 +246,7 @@ ic_mc %>%
 var_max <- max(var(muestras_clase_1), var(muestras_clase_2))
 desv_max <- sqrt(var_max)
 
-# Despejamos n: MCSE = sd / sqrt(n) → n = (sd / MCSE)^2
+# Despejamos n: MCSE = sd / sqrt(n); n = (sd / MCSE)^2
 mcse_deseado <- 0.005
 n_requerido <- ceiling((desv_max / mcse_deseado)^2)
 
@@ -279,19 +273,12 @@ mcse_clase_2_nuevo <- sd(muestras_clase_2_grande) / sqrt(n_requerido)
 # Creamos un resumen comparativo entre los valores analíticos y los simulados
 comparacion_precision <- tibble(
   Clase = c("Clase 1", "Clase 2"),
-  
-  # Valores analíticos (de la distribución posterior)
   Media_Analitica = c(mu_post_1, mu_post_2),
   Desv_Analitica  = c(sqrt(sigma2_post_1), sqrt(sigma2_post_2)),
-  
-  # Valores simulados con el tamaño muestral grande
   Media_Simulada_Nueva = c(media_clase_1_nueva, media_clase_2_nueva),
   Desv_Simulada_Nueva  = c(sd(muestras_clase_1_grande), sd(muestras_clase_2_grande)),
-  
-  # Error estándar de Monte Carlo
   MCSE_Nuevo = c(mcse_clase_1_nuevo, mcse_clase_2_nuevo)
-) %>%
-  mutate(across(where(is.numeric), round, 4)) # Redondeamos para mejor presentación
+)
 
 comparacion_precision
 
@@ -321,25 +308,25 @@ Obtén los resultados analíticos con las funciones `qnorm()` y `pnorm()`, y com
 # Por simulación (percentiles empíricos de las muestras de alta precisión)
 credibilidad_sim <- tibble(
   Clase = c("Clase 1", "Clase 2"),
-  IC99_Inf_Sim = c(quantile(muestras_clase_1_grande, 0.005),
+  ICred99_Inf_Sim = c(quantile(muestras_clase_1_grande, 0.005),
                    quantile(muestras_clase_2_grande, 0.005)),
-  IC99_Sup_Sim = c(quantile(muestras_clase_1_grande, 0.995),
+  ICred99_Sup_Sim = c(quantile(muestras_clase_1_grande, 0.995),
                    quantile(muestras_clase_2_grande, 0.995))
 )
 
 # Por método analítico (utilizando qnorm)
 credibilidad_ana <- tibble(
   Clase = c("Clase 1", "Clase 2"),
-  IC99_Inf_Ana = qnorm(0.005, mean = c(mu_post_1, mu_post_2),
+  ICred99_Inf_Ana = qnorm(0.005, mean = c(mu_post_1, mu_post_2),
                               sd   = c(sqrt(sigma2_post_1), sqrt(sigma2_post_2))),
-  IC99_Sup_Ana = qnorm(0.995, mean = c(mu_post_1, mu_post_2),
+  ICred99_Sup_Ana = qnorm(0.995, mean = c(mu_post_1, mu_post_2),
                               sd   = c(sqrt(sigma2_post_1), sqrt(sigma2_post_2)))
 )
 
 # Unimos ambos resultados
 intervalos_credibilidad <- credibilidad_sim %>%
-  left_join(credibilidad_ana, by = "Clase") %>%
-  mutate(across(where(is.numeric), round, 3))
+  left_join(credibilidad_ana, by = "Clase")
+
 intervalos_credibilidad
 ```
 
@@ -369,8 +356,7 @@ cuartiles_ana <- tibble(
 )
 
 cuartiles <- cuartiles_sim %>%
-  left_join(cuartiles_ana, by = "Clase") %>%
-  mutate(across(where(is.numeric), round, 3))
+  left_join(cuartiles_ana, by = "Clase")
 cuartiles
 ```
 
@@ -399,6 +385,8 @@ probabilidades <- prob_sim %>%
   mutate(across(where(is.numeric), round, 4))
 probabilidades
 
+
+#Los resultados son prácticamente idénticos.
 ```
 
 :::
@@ -428,16 +416,16 @@ prob_MC_superior
 
 ```
 ```{r}
-# Parámetros
-mu_D <- mu_post_2 - mu_post_1
-sigma_D <- sqrt(sigma2_post_1 + sigma2_post_2)
+# Parámetros para ana´litica
+mu_Dif <- mu_post_2 - mu_post_1
+sigma_Dif <- sqrt(sigma2_post_1 + sigma2_post_2)
 
 # Probabilidad analítica
-prob_analitica <- 1 - pnorm(0, mean = mu_D, sd = sigma_D)
+prob_analitica <- 1 - pnorm(0, mean = mu_Dif, sd = sigma_Dif)
 
 prob_analitica
 ```
-
+#El cálculo por MC, una vez ya simuladas las distribuciones, es mucho más directo e intuitivo.
 :::
 
 ### Pregunta 9
@@ -446,22 +434,18 @@ prob_analitica
 
 ::: {#respuesta-9 .callout-note}
 ```{r}
-# Resultado original
-prob_original <- mean(muestras_clase_2_grande > muestras_clase_1_grande)
+# Resultado original (solo renombrado para el ejercicio)
+prob_original <- prob_MC_superior
 
-# Aleatorizamos una de las muestras (por ejemplo, clase 1)
+# Aleatorizamos una de las muestras (Clase 1) y calculamos la probabilidad
 muestras_clase_1_shuffle <- sample(muestras_clase_1_grande)
-
-# Probabilidad tras reordenar
 prob_shuffle_1 <- mean(muestras_clase_2_grande > muestras_clase_1_shuffle)
 
 # Aleatorizamos la otra muestra
 muestras_clase_2_shuffle <- sample(muestras_clase_2_grande)
-
-# Probabilidad tras reordenar
 prob_shuffle_2 <- mean(muestras_clase_2_shuffle > muestras_clase_1_shuffle)
 
-# Aleatorizamos ambas muestras
+# Probabilidad habiendo aleatorizado ambas muestras
 prob_shuffle_ambas <- mean(muestras_clase_2_shuffle > muestras_clase_1_shuffle)
 
 # Resultados comparativos
@@ -472,7 +456,7 @@ tibble(
 
 
 ```
-
+#Se cumple que la aleatorización no afecta al resultado, como era de esperar de acuerdo a la teoría.
 :::
 
 ## Estimador máximo posterior
@@ -538,12 +522,12 @@ densidad_clase_1_tibble <- tibble(
   densidad = densidad_clase_1$y
 )
 
-# Estimamos el valor de la moda (maximo de la densidad)
+# Estimamos el valor de la moda (maximo de la densidad) usando pipes
 estimador_map_clase_1 <- densidad_clase_1_tibble %>%
   slice(which.max(densidad)) %>%
   pull(x)
 
-# Densidad máxima en la moda
+# Densidad máxima en la moda siguiendo el mismo método
 densidad_max_clase_1 <- densidad_clase_1_tibble %>%
   slice(which.max(densidad)) %>%
   pull(densidad)
@@ -579,11 +563,26 @@ densidad_max_clase_2
 ```
 
 ```{r}
-mu_post_1  # Estimador analítico de la media posterior para la Clase 1
-mu_post_2  # Estimador analítico de la media posterior para la Clase 2
+mu_post_1  # Estimador analítico de la media posterior para la Clase 1 previamente obtenido
+mu_post_2  # Estimador analítico de la media posterior para la Clase 2 previamente obtenido
+
+#Para calcular la densidad en el punto de media
+densidad_post_1 <- dnorm(mu_post_1, mean = mu_post_1, sd = sqrt(sigma2_post_1))
+densidad_post_2 <- dnorm(mu_post_2, mean = mu_post_2, sd = sqrt(sigma2_post_2))
+
+#Comparación
+resumen_estimadores <- tibble(
+  Clase = c("Clase 1", "Clase 2"),
+  Estimador_MAP_KDE = c(estimador_map_clase_1, estimador_map_clase_2),
+  Densidad_en_MAP_KDE = c(densidad_max_clase_1, densidad_max_clase_2),
+  Estimador_Analitico = c(mu_post_1, mu_post_2),
+  Densidad_Analitica = c(densidad_post_1, densidad_post_2)
+)
+
+resumen_estimadores
 
 ```
-
+#
 :::
 
 # Ejercicio 2: Distribuciones Gamma
@@ -609,19 +608,19 @@ La distribución Gamma está implementada en R mediante la familia de funciones 
 
 ::: {#respuesta-11 .callout-note}
 ```{r}
-# Parámetros de las distribuciones Gamma
-shape_sin <- 219
-rate_sin  <- 112
-shape_con <- 68
-rate_con  <- 45
+# Parámetros de las distribuciones Gamma (un parámetro de forma y uno de escala)
+forma_sin <- 219
+escala_sin  <- 112
+forma_con <- 68
+escala_con  <- 45
 
-# Rango de valores para el eje horizontal (ajustado para el límite en 5)
-x_range_sin <- seq(0, 5, by = 0.002)  # Limite del eje X en 5
-x_range_con <- seq(0, 5, by = 0.002)  # Limite del eje X en 5
+# Rango de valores para el eje horizontal (ajustado para el límite en 5, si no, por defecto, toma valores muy grandes y no se ve nada)
+x_range_sin <- seq(0, 5, by = 0.002)
+x_range_con <- seq(0, 5, by = 0.002)  
 
 # Cálculo de las densidades para cada distribución Gamma
-dens_sin <- dgamma(x_range_sin, shape = shape_sin, rate = rate_sin)
-dens_con <- dgamma(x_range_con, shape = shape_con, rate = rate_con)
+dens_sin <- dgamma(x_range_sin, shape = forma_sin, rate = escala_sin)
+dens_con <- dgamma(x_range_con, shape = forma_con, rate = escala_con)
 
 # Graficamos las dos distribuciones sobre el mismo gráfico con límite en el eje X
 ggplot() +
@@ -634,11 +633,8 @@ ggplot() +
     color = "Grupo"
   ) +
   scale_color_manual(values = c(PALETA[1], PALETA[2]), labels = c("Sin título universitario", "Con título universitario")) +
-  xlim(0, 5) +  # Establecemos el límite del eje X en 5
+  xlim(0, 5) +  # Se establece el límite del eje X en 5 por lo comentado antes
   theme_minimal()
-
-
-
 
 ```
 
@@ -668,11 +664,10 @@ probabilidad <- mean(diferencias > 0)
 # Intervalo de confianza del 99% para la diferencia de medias
 ic_diferencia <- quantile(diferencias, probs = c(0.005, 0.995))
 
-# Resultado redondeado a 3 decimales
-list(
-  diferencia = round(media_dif, 3),
-  ic_diferencia = round(ic_diferencia, 3),
-  probabilidad = round(probabilidad, 3)
+# Resultados en tabla
+tibble(
+  Parámetro = c("Diferencia", "IC 95 Inf","IC 95 Sup", "Probabilidad"),
+  Valor = c(media_dif, ic_diferencia[1], ic_diferencia[2],probabilidad)
 )
 ```
 
