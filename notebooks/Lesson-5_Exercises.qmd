@@ -248,15 +248,15 @@ ic_mc %>%
 ::: {#respuesta-5 .callout-note}
 ```{r}
 # Queremos un error estándar de Monte Carlo (MCSE) menor o igual a 0.005
-# Usamos la varianza simulada mayor entre ambas clases y calculamos el tamaño muestral necesario para que MCSE <= 0.005 (esto evita que se afecte la cifra anterior en el redondeo)
+# Usamos la varianza simulada mayor entre ambas clases y calculamos el tamaño muestral necesario para que MCSE <= 0.005
 var_max <- max(var(muestras_clase_1), var(muestras_clase_2))
 desv_max <- sqrt(var_max)
 
-# Despejando n: MCSE = sd / sqrt(n) → n = (sd / MCSE)^2
+# Despejamos n: MCSE = sd / sqrt(n) → n = (sd / MCSE)^2
 mcse_deseado <- 0.005
 n_requerido <- ceiling((desv_max / mcse_deseado)^2)
 
-# Simulamos de nuevo usando este tamaño muestral
+# Simulamos nuevamente usando este tamaño muestral
 muestras_clase_1_grande <- rnorm(
   n = n_requerido,
   mean = mu_post_1,
@@ -269,8 +269,14 @@ muestras_clase_2_grande <- rnorm(
   sd = sqrt(sigma2_post_2)
 )
 
-# Creamos un resumen comparativo entre los valores analíticos y los simulados con n_requerido
+# Calculamos medias y errores estándar de Monte Carlo
+media_clase_1_nueva <- mean(muestras_clase_1_grande)
+media_clase_2_nueva <- mean(muestras_clase_2_grande)
 
+mcse_clase_1_nuevo <- sd(muestras_clase_1_grande) / sqrt(n_requerido)
+mcse_clase_2_nuevo <- sd(muestras_clase_2_grande) / sqrt(n_requerido)
+
+# Creamos un resumen comparativo entre los valores analíticos y los simulados
 comparacion_precision <- tibble(
   Clase = c("Clase 1", "Clase 2"),
   
@@ -288,6 +294,7 @@ comparacion_precision <- tibble(
   mutate(across(where(is.numeric), round, 4)) # Redondeamos para mejor presentación
 
 comparacion_precision
+
 
 ```
 
@@ -643,31 +650,32 @@ ggplot() +
 
 ::: {#respuesta-12 .callout-note}
 ```{r}
-# Número de simulaciones
-n_sim <- 5000  # Este tamaño muestral se justifica para lograr precisión de tres decimales
+# Número de simulaciones necesario para 3 decimales de precisión
+# MCSE deseado ≈ 0.0005 → n ≈ 0.25 / 0.0005^2 = 1000000.
+n_sim <- 1000000
 
-# Simulación de las distribuciones Gamma
-set.seed(20250318)
+# Simulación de distribuciones posteriores Gamma
 muestras_sin <- rgamma(n_sim, shape = 219, rate = 112)
 muestras_con <- rgamma(n_sim, shape = 68, rate = 45)
 
-# Diferencia de medias
+# Diferencia entre muestras
 diferencias <- muestras_sin - muestras_con
+media_dif <- mean(diferencias)
 
-# Calcular la probabilidad de que la tasa de fertilidad sin título sea superior a la de con título
+# Probabilidad de que sin título > con título
 probabilidad <- mean(diferencias > 0)
 
-# Calcular el intervalo de confianza del 99% para la diferencia de medias
+# Intervalo de confianza del 99% para la diferencia de medias
 ic_diferencia <- quantile(diferencias, probs = c(0.005, 0.995))
 
-# Mostrar resultados
+# Resultado redondeado a 3 decimales
 list(
-  probabilidad = probabilidad,
-  ic_diferencia = ic_diferencia
+  diferencia = round(media_dif, 3),
+  ic_diferencia = round(ic_diferencia, 3),
+  probabilidad = round(probabilidad, 3)
 )
-
-
 ```
+
 
 :::
 
