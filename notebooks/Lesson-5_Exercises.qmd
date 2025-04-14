@@ -282,7 +282,6 @@ comparacion_precision <- tibble(
 
 comparacion_precision
 
-
 ```
 
 :::
@@ -381,8 +380,7 @@ prob_ana <- tibble(
 )
 
 probabilidades <- prob_sim %>%
-  left_join(prob_ana, by = "Clase") %>%
-  mutate(across(where(is.numeric), round, 4))
+  left_join(prob_ana, by = "Clase")
 probabilidades
 
 
@@ -522,7 +520,7 @@ densidad_clase_1_tibble <- tibble(
   densidad = densidad_clase_1$y
 )
 
-# Estimamos el valor de la moda (maximo de la densidad) usando pipes
+# Estimamos el valor de la moda (máximo de la densidad) usando pipes
 estimador_map_clase_1 <- densidad_clase_1_tibble %>%
   slice(which.max(densidad)) %>%
   pull(x)
@@ -547,7 +545,7 @@ densidad_clase_2_tibble <- tibble(
   densidad = densidad_clase_2$y
 )
 
-# Estimamos el valor de la moda (maximo de la densidad)
+# Estimamos el valor de la moda (máximo de la densidad)
 estimador_map_clase_2 <- densidad_clase_2_tibble %>%
   slice(which.max(densidad)) %>%
   pull(x)
@@ -563,6 +561,7 @@ densidad_max_clase_2
 ```
 
 ```{r}
+# Parte analítica
 mu_post_1  # Estimador analítico de la media posterior para la Clase 1 previamente obtenido
 mu_post_2  # Estimador analítico de la media posterior para la Clase 2 previamente obtenido
 
@@ -622,19 +621,23 @@ x_range_con <- seq(0, 5, by = 0.002)
 dens_sin <- dgamma(x_range_sin, shape = forma_sin, rate = escala_sin)
 dens_con <- dgamma(x_range_con, shape = forma_con, rate = escala_con)
 
-# Graficamos las dos distribuciones sobre el mismo gráfico con límite en el eje X
+# Graficamos las dos distribuciones
 ggplot() +
-  geom_line(aes(x = x_range_sin, y = dens_sin), color = PALETA[1], size = 1.2) +
-  geom_line(aes(x = x_range_con, y = dens_con), color = PALETA[2], size = 1.2) +
+  geom_line(aes(x = x_range_sin, y = dens_sin, color = "Sin título universitario"), size = 1.2) +
+  geom_line(aes(x = x_range_con, y = dens_con, color = "Con título universitario"), size = 1.2) +
   labs(
     title = "Distribuciones Posteriores Gamma",
     x = "Tasa de Fertilidad",
     y = "Densidad",
     color = "Grupo"
   ) +
-  scale_color_manual(values = c(PALETA[1], PALETA[2]), labels = c("Sin título universitario", "Con título universitario")) +
-  xlim(0, 5) +  # Se establece el límite del eje X en 5 por lo comentado antes
+  scale_color_manual(values = c(
+    "Sin título universitario" = PALETA[1],
+    "Con título universitario" = PALETA[2]
+  )) +
+  xlim(0, 5) + # Límite en 5 por lo comentado antes.
   theme_minimal()
+
 
 ```
 
