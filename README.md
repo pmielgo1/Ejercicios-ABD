@@ -111,7 +111,9 @@ The file structure of this repository is as follows:
     |
     |--- renv      (System library necesssary for `renv` to work. DON'T TOUCH)
     |
-    |--- www          (Project assets, e.g., images, bibliography files, etc.)
+    |--- src       (Source scripts that implement the main processes)
+    |
+    |--- www       (Project assets, e.g., images, bibliography files, etc.)
 
 Use the folders as indicated to store the different files and generate
 the outputs of the processes.

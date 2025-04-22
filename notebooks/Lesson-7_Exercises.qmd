@@ -1,0 +1,415 @@
+---
+title: "Tema 7: PEC"
+format:
+  html:
+    code-copy:       true
+    code-tools:      true
+    df-print:        paged
+    embed-resources: true
+    theme:           ../www/extra-styles.scss
+    toc:             true
+    toc-location:    left
+bibliography:        ../www/abd.bib
+csl:                 ../www/apa-old-doi-prefix.csl
+callout-appearance: minimal
+---
+
+# Introducción
+
+En este tema hemos estudiado cómo obtener muestreas "identicamente distribuidas" (¡pero no necesariamente independientes!) de **cualquier distribución de probabilidad** gracias a la familia de algoritmos **Markov chain Monte Carlo** (MCMC).
+
+Además, hemos aprendido acerca de la **dependencia serial** en las cadenas de Markov, cómo diagnosticarla, y su efecto en el **tamaño muestral efectivo de Monte Carlo**.
+
+Estos ejercicios ponen en práctica estos conceptos con modelos de las lecturas, para afianzar estos conceptos.
+En el [Ejercicio 1](#ejercicio-1) nos basaremos en el ejemplo del muestreador de Gibbs de @hoff2009a [pp. 98-103] para demostrar la lógica de ese algoritmo, así como las propiedades de una cadenas de Markov generada mediante el método de MCMC.
+
+En el [Ejercicio 2](#ejercicio-2) tomaremos contacto con el software de análisis Bayesiano de datos [Stan](https://mc-stan.org/), utilizando un ejemplo del [texto de ampliación](https://agora.uned.es/mod/resource/view.php?id=514493) [@geyer2011, pp. 30-34].
+Te recomiendo por tanto:
+
+-   Realizar el [Ejercicio 1](#ejercicio-1) en primer lugar.
+
+-   Leer a continuación el epígrafe 1.13 (A Metropolis Example) del [texto de ampliación](https://agora.uned.es/mod/resource/view.php?id=514493) [@geyer2011, pp. 30-34].
+
+-   Por último, realizar el [Ejercicio 2](#ejercicio-2).
+
+```{r setup}
+#| message: false
+
+# Paquetes:
+library(tidyverse)
+library(RColorBrewer)
+library(scales)
+library(rstan) # Nuevo paquete para el ejercicio 2 (añadir al entorno!)
+
+# Configuración de la salida gráfica:
+
+PALETA <- brewer.pal(8, "Set2") # Colores por defecto
+color_defecto <- PALETA[1]      # Color por defecto
+options(ggplot2.discrete.colour = PALETA)
+
+theme_set(theme_bw()) # Tema "neutro" para la representación gráfica
+
+# Redondea los números reales "inline":
+options(digits = 3L)                
+options(knitr.digits.signif = FALSE)
+
+# Inicializa la semilla aleatoria:
+set.seed(20250408)
+```
+
+Inicializamos el entorno como es habitual.
+Al igual que en el ejercicio anterior, en este caso **también inicializamos la semilla aleatoria** para asegurar la **reproducibilidad**.
+
+# Ejercicio 1: Cadena de Markov mediante muestreo de Gibbs {#ejercicio-1}
+
+## Distribuciones condicionales
+
+En la primera de las lecturas [@hoff2009a] hemos visto cómo muestrear de distribuciones condicionales.
+Vamos a utilizar el ejemplo del epígrafe 6.6 en este ejercicio (pp. 98-103) para demostrar el "muestreo de Gibbs", las propiedades de las cadenas de Markov, y la convergencia.
+
+Recuerda que la distribución que viene definida por[^1]
+
+[^1]: Si te estás preguntando de dónde sale una distribución así, piensa que puede tratarse de una variable en la que hay tres grupos o "clases latentes", cada uno distribuido normalmente pero con medias diferentes; a modo de ejemplo: Usando el ejercicio sobre "velocidad de lectura" en temas anteriores, podríamos tener estudiantes pertenecientes a un grupo de "desarrollo típico" y otros dos grupos con diferentes trastornos de aprendizaje, cada uno teniendo un parámetro distinto para el valor promedio en velocidad de lectura, sin que conozcamos a priori a qué grupo pertenece cada estudiante.
+
+$$
+\begin{split}
+  {Pr(δ = 1), Pr(δ = 2), Pr(δ = 3)} = (.45, .10, .45) \\
+  p(θ|δ) = N(θ, μ_δ, σ_δ); \quad (μ_1, μ_2, μ_3) = (−3, 0, 3); \quad σ_1^2 = σ_2^2 = σ_3^2 = 1/3
+\end{split}
+$$
+
+Podemos obtener la aproximación discreta a la distribución de $θ$, como hemos hecho en temas anteriores, para usarla como referencia:
+
+```{r distribucion-discreta}
+PREC       <- 1e-3             # Precisión para la aproximación discreta
+PROB_DELTA <- c(.45, .10, .45) # Probabilidades de los tres grupos
+MEDIAS     <- c(-3, 0, 3)      # Medias de los tres grupos en función de "delta"
+VAR        <- 1/3              # Varianza de los tres grupos
+
+sd      <- sqrt(VAR) # Desviación estándar de cada grupo
+n_desv  <- 5 # Número de "desviaciones estándar" para calcular los límites
+lim_inf <- floor(  min(MEDIAS) - n_desv * sd) # Límites para aproximación
+lim_sup <- ceiling(max(MEDIAS) + n_desv * sd) #   discreta (inferior y superior)
+
+# Aproximación discreta:
+densidad <- tibble(
+  theta    = seq(from = lim_inf, to = lim_sup, by = PREC),
+  densidad = theta |> dnorm(mean = MEDIAS[1], sd = sd) * PROB_DELTA[1] +
+             theta |> dnorm(mean = MEDIAS[2], sd = sd) * PROB_DELTA[2] +
+             theta |> dnorm(mean = MEDIAS[3], sd = sd) * PROB_DELTA[3]
+)
+
+# Gráfica de la aproximación discreta:
+aprox_discreta_plot <- densidad |>
+  ggplot(mapping = aes(x = theta, y = densidad)) +
+  geom_line(colour = color_defecto) +
+  labs(
+    title = "Distribución de θ",
+    x = "θ",
+    y = "p(θ)",
+  )
+
+aprox_discreta_plot
+```
+
+Tal y como la lectura indica, en esta distribución sería muy sencillo obtener una muestra de Monte Carlo i.i.d. Así que ten en cuenta que este ejercicio tiene un **propósito ilustrativo** sobre las **propiedades del muestreador de Gibbs**, y la aproximación de Monte Carlo que resulta de la cadena de Markov generada por este algoritmo.
+
+### Pregunta 1
+
+-   Dado un valor de $δ$, escibe a continuación una función que devuelva una única muestra aleatoria de $θ$ (i.e., una muestra de tamaño 1) de la distribución $p(θ|δ)$. Utiliza el prototipo de la función que se da a continuación, y los objetos globales definidos en el "chunk" de código anterior sin necesidad de definirlos de nuevo (`PROB_DELTA`, `MEDIAS`, `VAR`, o `sd`, según los necesites).
+
+::: {#respuesta-1 .callout-note}
+```{r muestrear-theta}
+# Argumento `delta`: Valor entero de δ para muestrear $p(θ|δ)$
+muestrear_theta <- function(delta) {
+  
+  # COMPLETAR AQUÍ EL CUERPO DE LA FUNCIÓN
+}
+```
+:::
+
+### Pregunta 2
+
+-   Dado un valor de $θ$, escibe a continuación una función que devuelva una única muestra aleatoria de $δ$ (i.e., una muestra de tamaño 1) de la distribución $p(δ|θ)$, tal y como se indica en la ecuación de la p. 100 de @hoff2009a. Utiliza el prototipo de la función que se da a continuación, y los objetos globales definidos en el "chunk" de código anterior sin necesidad de definirlos de nuevo (`PROB_DELTA`, `MEDIAS`, `VAR`, o `sd`, según los necesites).
+
+::: {#respuesta-2 .callout-note}
+```{r muestrear-delta}
+# Argumento `theta`: Valor real de θ para muestrear $p(δ|θ)$
+muestrear_delta <- function(theta) {
+  
+  # COMPLETAR AQUÍ EL CUERPO DE LA FUNCIÓN
+}
+```
+:::
+
+## Muestreador de Gibbs
+
+A continuación tienes una función que realiza una iteración del muestreador de Gibbs utilizando las dos funciones que acabas de escribir, devolviendo una muestra de tamaño 1 de la distribución conjunta $p(θ, δ)$.
+Es decir, dado el estado actual de la cadena de Markov, la función devuelve el siguiente estado.
+
+```{r definir-iteracion-Gibbs}
+itera_Gibbs <- function(theta, delta) {
+  
+  # Muestra de theta:
+  theta <- muestrear_theta(delta) # Observa que el valor "actual" de theta en
+                                  #   realidad no se usa en esta función, pero
+                                  #   lo usamos como argumento para definir el
+                                  #   "estado actual completo" de la cadena.
+  # Muestra de delta:
+  delta <- muestrear_delta(theta)
+  
+  # Devuelve el nuevo estado de la cadena de Markov:
+  tibble(theta = theta, delta = delta) # Usamos el tipo "tibble" para devolver a
+                                       #   la vez un número real y un entero.
+}
+```
+
+Ahora vamos a definir un objeto para "almacenar" los estados de la cadena de Markov.
+Aunque podríamos ir "concatenando" las filas resultantes de cada estado, es mucho más eficiente (por cómo R maneja la memoria) definir un objeto de tamaño conocido e ir "rellenándolo" con los estados de la cadena.
+Para ello, vamos a necesitar el número de iteraciones de la cadena, que fijaremos en 1,000, como en el ejemplo del libro.
+
+```{r definir-cadena-Gibbs}
+N_GIBBS <- 1000 # Número de iteraciones de la cadena de Markov
+
+cadena_Gibbs <- tibble( # Objeto para almacenar los estados de la cadena
+  theta = numeric(N_GIBBS),
+  delta = integer(N_GIBBS)
+)
+```
+
+Con los objetos anteriores, ya tenemos casi todo lo necesario para realizar el muestreo de Gibbs.
+Solamente falta el estao inicial de la cadena.
+
+### Pregunta 3
+
+-   Define un objeto `estado_cadena` de tipo "tibble" para que contenga un estado inicial de la cadena de Markov que tenga una alta probabilidad de encontrarse en la distribución estacionaria. Para ello, selecciona un valor próximo a uno de los tres modos de la distribución de $θ$ y un valor adecuado de $δ$, justificando la elección de ambos.
+
+::: {#respuesta-3 .callout-note}
+:::
+
+### Pregunta 4
+
+-   Escribe el código necesario para iterar la cadena de Markov, comenzando en el valor definido anteriormente de `estado_cadena`, y guardando los estados en el objeto `cadena_Gibbs`.
+
+::: {#respuesta-4 .callout-note}
+:::
+
+### Pregunta 5
+
+-   Representa la densidad de la distribución de $θ$ obtenida a partir de la cadena de Markov junto con la aproximación discreta que obtuvimos antes. Explica qué observas en el resultado.
+
+::: {#respuesta-5 .callout-note}
+:::
+
+## Diagnósticos
+
+### Pregunta 6
+
+-   Usando las funciones indicadas en la p. 103 de @hoff2009a, representa la autocorrelación serial de los valores de $θ$ en la cadena y calcula el tamaño muestral efectivo de Monte Carlo.
+
+*(NOTA: No olvides añadir el paquete `{coda}` en el entorno con el botón "renv" -\> "Snapshot Library...".)*
+
+::: {#respuesta-6 .callout-note}
+:::
+
+### Pregunta 7
+
+-   Define un objeto `cadena_Gibbs2`, de igual manera que definist `cadena_Gibbs`, y repite la pregunta 3, pero eligiendo un estado inicial en otro modo distinto. Después, genera una nueva cadena de Markov, almacenando sus estados en `cadena_Gibbs2` como en el ejercicio 4, y repite las representaciones y cálculos de los ejercicios 5 y 6.
+
+::: {#respuesta-7 .callout-note}
+:::
+
+### Pregunta 8
+
+**ATENCIÓN: El siguiente ejercicio NO está basado en la lectura; presta especial atención.**
+
+-   Consulta la ayuda de la función `gelman.diag()` del paquete `{coda}`. Después, completa el siguiente chunk para calcular el estadístico $R$ (diagnóstico de Gelman-Rubin) para los valores de $θ$ a partir de las dos cadena de Markov que acabas de generar e interprétalo.
+
+::: {#respuesta-8 .callout-note}
+```{r calcular-diagnostico-GR}
+theta_Gibbs <- list(
+  theta_Gibbs_1 = cadena_Gibbs  |> pull(theta) |> as.mcmc(),
+  theta_Gibbs_2 = cadena_Gibbs2 |> pull(theta) |> as.mcmc()
+)
+
+# COMPLETAR AQUÍ EL CÓDIGO FALTANTE PARA CALCULAR $R$
+
+```
+
+:::
+
+### Pregunta 9
+
+-   De forma similar a como se ha hecho en la pregunta 7, obten dos cadenas de Markov de la distribución posterior conjunta de $p(θ, δ)$, pero con una longitud de 100,000 (ten paciencia, puede tardar un rato en hacer las iteraciones). Repite con estas dos nuevas cadenas los ejercicios 5, 6 y 8.
+
+*(NOTA: Responde en el chunk de R proporcionado; la opción `#| cache: true` te ahorrará mucho tiempo de espera al renderizar el notebook después de hacerlo por primera vez.)*
+
+::: {#respuesta-9 .callout-note}
+```{r muestrear-Gibbs-100000}
+#| cache: true # Guarda los resultados para no tener que ejecutar el "chunk"
+               #   cada vez que se renderiza el notebook.
+
+# ESCRIBE A CONTINUACIÓN EL CÓDIGO PARA EJECUTAR EL MUESTREADOR DE GIBBS
+
+```
+
+:::
+
+### Pregunta 10
+
+-   La pregunta 8 demuestra el uso del estadístico de convergencia de Gelman-Rubin para cadenas de Markov, pero hace una serie de supuestos que no siempre se cumplen. En base a la ayuda de `gelman.diag()`, ¿cómo interpretarías los resultados del estadístico $R$ obtenidos en estos casos? ¿Qué crees que ocurriría si lo calculamos con dos (o más) cadenas que convergen "parcialmente" a uno de los modos de la distribución únicamente?
+
+::: {#respuesta-10 .callout-note}
+:::
+
+## Distribución estacionaria
+
+### Pregunta 11
+
+-   Si crees que las cadenas en la pregunta 9 no han convergido satisfactoriamente a la distribución estacionaria, vuelve a ejecutarlas (quizá con mayor longitud) hasta obtener una convergencia sastisfactoria. Si consideras la convergencia de las cadenas satisfactoria (o una vez la consideres satisfactoria), colapsa los estados de ambas cadenas en un solo "data.frame" y obtén la densidad de $θ$ con las muestras de ambas cadenas.
+
+::: {#respuesta-11 .callout-note}
+:::
+
+# Ejercicio 2: Ajuste de un modelo en Stan {#ejercicio-2}
+
+Ahora que tienes una noción de qué es una cadena de Markov y cómo puede utilizarse para aproximar una distribución posterior, vamos a estimar un modelo Bayesiano relativamente complejo.
+Hasta ahora hemos demostrado la aproximación a una distribución conocida mediante el método MCMC.
+Sin embargo, recuerda que podemos aproximar cualquier distribución posterior gracias al algoritmo Metropolis-Hastings.
+Esto incluye aquellas para las que no conocemos su "verosimilitud marginal" o "constante de proporcionalidad" [recuerda la "fórmula de la proporcionalidad en la [lectura del Tema 3](https://agora.uned.es/mod/resource/view.php?id=506207), @puza2015a, pp. 13-18].
+
+Para estimar este modelo, vamos a utilizar el software [Stan](https://mc-stan.org/).
+Stan es un software de análisis Bayesiano de datos que utiliza internamente un algoritmo MCMC para realizar la aproximación numérica de la distribución posterior de un modelo.
+
+Verás que Stan obtiene muestras MCMC de manera muy rápida en comparación con el ejemplo que vimos en el Ejercicio 1.
+Esto se debe a que "convierte" la especificación de un modelo a "código compilado" en C++ (en lugar de "traducir" el código línea a línea, como hace el intérprete de R).
+Pero para ello, es necesario instalar las "herramientas de compilación" de R.
+Así que antes de comenzar a usar Stan, asegúrate de tener instalada la versión de RTools correspondiente a tu sistema operativo, siguiendo las [instrucciones en el repositorio de Rstan en GitHub](https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started#configuring-c-toolchain).
+Una vez hayas comprobado que Stan funciona, ejecutando el ejemplo según se indica en la sección [Verifying installation](https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started#verifying-installation), continúa con el ejercicio.
+
+## Regresión logística
+
+En el [texto de ampliación del tema](https://agora.uned.es/mod/resource/view.php?id=514493) [@geyer2011, pp. 30-34] puedes ver un ejemplo de ajuste de un modelo de regresión logística Bayesiano, utilizando el paquete [`{mcmc}`](https://cran.r-project.org/package=mcmc) del propio autor.
+Asegúrate de familiarizarte con el ejemplo, ya que lo utilizaremos en este ejercicio.
+
+### Pregunta 12
+
+-   Carga el dataset `logit` del paquete `{mcmc}`, explóralo, y explica su contenido.
+
+*(NOTA: No olvides añadir el paquete `{mcmc}` al entorno.)*
+
+::: {#respuesta-12 .callout-note}
+:::
+
+### Pregunta 13
+
+-   Utiliza el código proporcionado por el autor para ajustar el modelo lineal general con los datos y especificaciones del propio autor (p. 30) en un marco frecuentista. Comenta brevemente los resultados.
+
+::: {#respuesta-13 .callout-note}
+:::
+
+## Especificación en Stan
+
+El [archivo "src/geyer_2011_logistic.stan"](src/geyer_2011_logistic.stan) contiene la sintaxis en Stan equivalente al modelo de regresión logística en @geyer2011 [pp. 31-32].
+
+La sintaxis de R a continuación ejecuta el modelo usando el paquete [`{rstan}`](https://cran.r-project.org/package=rstan).
+Consulta la [guía de usuario de Stan](https://mc-stan.org/docs/2_36/stan-users-guide/) para familiarizarte con esta sintaxis.
+
+```{r ajustar-modelo-Stan}
+#| cache: true
+
+# Configuración de Stan para mejorar la eficiencia:
+options(mc.cores = parallel::detectCores()) # Computación en paralelo
+rstan_options(auto_write = TRUE)            # Escribe el modelo compilado
+
+# Datos de entrada al modelo
+datos_logit <- list(
+  y = logit |> pull(y),
+  x = logit |> select(starts_with('x')),
+  N = nrow(logit),
+  K = ncol(logit) - 1L
+)
+
+# Ajustar el modelo
+fit_logit_stan <- stan(
+  file   = "../src/geyer_2011_logistic.stan",
+  iter   = 1000L,
+  chains =    4L,
+  data   = datos_logit
+)
+```
+
+### Pregunta 14
+
+-   Fíjate en la sección `data` (líneas 2-7) en el modelo de Stan. En base a esto, explica la estructura del objeto `datos_logit`.
+
+::: {#respuesta-14 .callout-note}
+:::
+
+### Pregunta 15
+
+-   Muestra el objeto `fit_logit_stan` y explica el significado del siguiente texto, de acuerdo a los términos que aparecen en las lecturas del tema:
+
+    Inference for Stan model: anon_model.
+    4 chains, each with iter=1000; warmup=500; thin=1; post-warmup draws per chain=500, total post-warmup draws=2000.
+
+Explica también qué significan los valores e la columna `se_mean` y cómo se interpretan.
+
+::: {#respuesta-15 .callout-note}
+:::
+
+### Pregunta 16
+
+-   Explica cómo se diferencian las especificaciones del algoritmo en Stan anterior de las utilizadas por @geyer2011, en cuanto a número de cadenas, iteraciones, "burn-in", "thinning", y valores iniciales de las cadenas.
+
+::: {#respuesta-16 .callout-note}
+:::
+
+### Pregunta 17
+
+-   ¿Podrías decir que las muestras del modelo aproximado con Stan representan adecuadamente la distribución posterior de los parámetros del modelo? ¿En qué te basas para afirmar / refutar que es así?
+
+::: {#respuesta-17 .callout-note}
+:::
+
+## Interpretación del modelo
+
+### Pregunta 18
+
+-   Compara los resultados de ajustar el modelo en Stan con los del modelo frecuentista en el objeto `out`. ¿Qué parámetro equivale a cada cuál, y cómo son los valores?
+
+::: {#respuesta-18 .callout-note}
+:::
+
+### Pregunta 19
+
+-   Utiliza el método `plot()` para representar el modelo Bayesiano aproximado con Stan e interprétalo. ¿Qué se está mostrando en esta representación?
+
+*(NOTA: Este método devuelve un objeto de clase "ggplot", por lo que puedes usar cualquier función de `{ggplot2}` para dar formato y estilo a la salida gráfica si quieres.)*
+
+::: {#respuesta-19 .callout-note}
+:::
+
+### Pregunta 20
+
+-   El paquete [`{bayesplot}`](https://cran.r-project.org/package=bayesplot) proporciona gran variedad de funciones construidas sobre `{ggplot2}` para representar cadenas de Markov, distribuciones posteriores, etc. a partir de la salida de Stan. Revisa la ayuda del paquete y averigua cómo representar el "trazado" de las cadenas de Markov y las distribuciones posteriores de los parámetros e interpreta las salidas.
+
+::: {#respuesta-20 .callout-note}
+:::
+
+## Salidas adicionales en Stan
+
+La función `mcmc::metrop()` admite un argumento `outfun`, el cual es a su vez una función.
+@geyer2011 [p. 33] utiliza este argumento para llamar a una función que admite un vector (argumento `z`, y devuelve ese mismo vector, pero añadiendo también sus valores al cuadrado).
+De esta manera, además de los parámetros del modelo, la función `mcmc::metrop()` devuelve también esos mismos parámetros al cuadrado.
+
+Fíjate en la sección [`generated quantities`](https://mc-stan.org/docs/reference-manual/blocks.html#program-block-generated-quantities) del [archivo con el modelo de Stan](src/geyer_2011_logistic.stan).
+
+### Pregunta 21
+
+-   Añade a la sección `generated quantities` del modelo en Stan el código necesario para que genere un valor real llamado `alpha_2`, con el valor al cuadrado de `alpha`, y un vector llamado `beta_2` con los valores al cuadrado de `beta`. Ayúdate de la [referencia de Stan sobre funciones reales](https://mc-stan.org/docs/functions-reference/real-valued_basic_functions.html). Después ejecuta el modelo en Stan de nuevo y comprueba si la salida ha generado los nuevos valores correctamente. Representa las distribuciones de estos nuevos valores.
+
+::: {#respuesta-21 .callout-note}
+:::
+
+# Referencias
