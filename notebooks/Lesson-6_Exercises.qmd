@@ -104,6 +104,42 @@ Como en temas anteriores, vamos a utilizar una distribución no informativa para
 -   Aproxima la distribución previa de $\theta$ por el método de Monte Carlo de manera que el valor esperado tenga una precisión de 0.01 con el 99% de probabilidad. Comprueba que la media y varianza se aproximan a los valores teóricos y representa la distribución resultante.
 
 ::: {#respuesta-1 .callout-note}
+```{r}
+# Parámetros de la distribución no informativa Beta(1,1)
+alpha <- 1
+beta <- 1
+var_teorica <- (alpha * beta) / ((alpha + beta)^2 * (alpha + beta + 1))  # El resultado es 1/12
+
+# Cálculo del tamaño muestral para que el MCSE ≤ 0.01
+mcse_requerido <- 0.01 #Al ser menor o igual, no hace falta calcularlo con 0,05 como en el Tema5.
+n_mcse <- ceiling(var_teorica / mcse_requerido^2) #Será el número de simulaciones a usar.
+
+# Simulación para la predicción a priorir
+theta_sim <- rbeta(n_mcse, alpha, beta) #Genera el número de thetas que se calculó antes en la distribución a priori.
+media_sim <- mean(theta_sim) #Media de las thetas simuladas
+var_sim   <- var(theta_sim) #Varinza de las thetas simuladas
+mcse_sim  <- sd(theta_sim) / sqrt(n_mcse) #MCSE, solo por comprobar que efectivamente es el esperado.
+
+# Visualización previa simulada de theta
+
+ggplot(data.frame(theta = theta_sim), aes(x = theta)) +
+  geom_histogram(aes(y = ..density..), bins = 50, fill = color_defecto, color = "black") +
+  stat_function(fun = dbeta, args = list(shape1 = alpha, shape2 = beta),
+                color = "red", linetype = "dashed", linewidth = 1) +
+  labs(
+    title = "Distribución previa simulada de θ (Beta(1,1))",
+    subtitle = paste0("n = ", n_mcse, 
+                      " | Media = ", round(media_sim, 3), #He tenido que añadir el round manualmente.
+                      " | Var = ", round(var_sim, 3),
+                      " | MCSE ≈ ", round(mcse_sim, 2)),
+    x = expression(theta),
+    y = "Densidad"
+  ) +
+  coord_cartesian(xlim = c(0, 1))  # Limita el eje x entre 0 y 1, lo que abarca el rango uniforme de beta (1,1).
+
+
+```
+#Se observa que no hay patrones claros en la distribución. Como dato interesante, si se aumenta el número de bins a valores muy altos o muy bajos, la distribución se vuelve perfectamente uniforme.
 :::
 
 ### Pregunta 2
@@ -111,6 +147,30 @@ Como en temas anteriores, vamos a utilizar una distribución no informativa para
 -   A partir de la distribución previa simulada de $\theta$, simula los resultados de pruebas binomiales para la primera muestra del estudio. (Ten en cuenta que debe tener el tamaño muestral correspondiente). Representa la distribución predictiva previa resultante e interprétala.
 
 ::: {#respuesta-2 .callout-note}
+```{r}
+# Definir el tamaño de la muestra
+n_muestra_1 <- 22
+
+# Simulación de los resultados binomiales para cada valor de theta en la simulación del ejercicio 1
+resultados_binomiales <- sapply(theta_sim, function(theta) {
+  rbinom(1, n_muestra_1, theta)
+})
+
+# Histograma de la distribución predictiva previa
+ggplot(data.frame(resultados = resultados_binomiales), aes(x = resultados)) +
+  geom_histogram(aes(y = ..density..), bins = 22, fill = color_defecto, color = "black") +
+  labs(
+    title = "Distribución Predictiva Previa de Aceptación (Primera Muestra)",
+    subtitle = paste0("n = ", n_muestra_1, 
+                      " | Media = ", round(mean(resultados_binomiales), 3), 
+                      " | Var = ", round(var(resultados_binomiales), 3)),
+    x = "Número de Aceptaciones",
+    y = "Densidad"
+  ) +
+  coord_cartesian(xlim = c(0, n_muestra_1))  # Limita el eje entre 0 y n=22
+
+```
+#De nuevo, el parón no es evidente.
 :::
 
 ### Pregunta 3
@@ -118,6 +178,30 @@ Como en temas anteriores, vamos a utilizar una distribución no informativa para
 -   Utilizando la distribución predictiva previa de la pregunta anterior, calcula en qué centil se encuentra la primera muestra empírica del estudio de aceptación. ¿Cuál es la probabilidad de obtener un valor igual o mayor que este? ¿Y un valor igual o menor?
 
 ::: {#respuesta-3 .callout-note}
+```{r}
+# Contamos cuántos "sí" hubo en la primera muestra
+n_aceptaciones_muestra_1 <- sum(aceptacion_muestra_1$resp_descarga_app == "Si")
+n_aceptaciones_muestra_1
+
+# Calcular el centil en el que se encuentra 17
+centil_muestra_1 <- mean(resultados_binomiales <= n_aceptaciones_muestra_1) * 100
+
+# Probabilidad de obtener un valor mayor o igual al observado valiéndonos de las reglas y propiedades de las simulaciones de MC
+prob_mayor_igual <- mean(resultados_binomiales >= n_aceptaciones_muestra_1)
+
+# Probabilidad de obtener un valor menor o igual al observado
+prob_menor_igual <- mean(resultados_binomiales <= n_aceptaciones_muestra_1)
+
+# Crear el tibble con los resultados
+resultados_tibble <- tibble(
+  Centil = centil_muestra_1,
+  Probabilidad_Mayor_O_Igual = prob_mayor_igual,
+  Probabilidad_Menor_O_Igual = prob_menor_igual
+)
+resultados_tibble
+
+```
+
 :::
 
 ## Distribución predictiva posterior
@@ -127,6 +211,37 @@ Como en temas anteriores, vamos a utilizar una distribución no informativa para
 -   Utiliza el mismo nº de muestras de Monte Carlo de la distribución previa para aproximar la distribución posterior de $\theta$. (Utiliza la propiedad ya conocida de la conjugación para muestrear de la distribución posterior). Representa la distribución posterior obtenida.
 
 ::: {#respuesta-4 .callout-note}
+```{r}
+# Número de éxitos en la primera muestra (ya calculado)
+n_aceptaciones_muestra_1
+
+# Número de fracasos (respuestas negativas)
+n_fracasos_muestra_1 <- n_muestra_1 - n_aceptaciones_muestra_1
+
+# Actualizar los parámetros de la distribución Beta posterior (sumar aciertos a alfa y fracasos a beta)
+alpha_posterior <- alpha + n_aceptaciones_muestra_1
+beta_posterior <- beta + n_fracasos_muestra_1
+
+# Muestreo MC de la distribución Beta posterior. 
+theta_posterior_sim <- rbeta(n_mcse, alpha_posterior, beta_posterior) #Mismo n para obtener resultados comparables.
+
+# Visualizar la distribución posterior
+ggplot(data.frame(theta = theta_posterior_sim), aes(x = theta)) +
+  geom_histogram(aes(y = ..density..), bins = 50, fill = color_defecto, color = "black") +
+  stat_function(fun = dbeta, args = list(shape1 = alpha_posterior, shape2 = beta_posterior),
+                color = "red", linetype = "dashed", linewidth = 1) +
+  labs(
+    title = "Distribución Posterior Simulada de θ (Beta Posterior)",
+    subtitle = paste0("n = ", n_muestra_1, 
+                      " | Media = ", round(mean(theta_posterior_sim), 3), 
+                      " | Var = ", round(var(theta_posterior_sim), 3)),
+    x = expression(theta),
+    y = "Densidad"
+  ) +
+  coord_cartesian(xlim = c(0, 1))  # Limitar el eje x entre 0 y 1
+
+```
+#Ahora ya se visualiza un patrón claro en la distribución de las tehtas en torno a un valor medio.
 :::
 
 ### Pregunta 5
@@ -134,6 +249,32 @@ Como en temas anteriores, vamos a utilizar una distribución no informativa para
 -   A partir de la distribución posterior simulada de $\theta$, simula los resultados de pruebas binomiales para la primera muestra del estudio y represéntala.
 
 ::: {#respuesta-5 .callout-note}
+```{r}
+# Simulación de resultados binomiales a partir de la distribución posterior (similar al ejercicio 3)
+
+# Simulación de los resultados binomiales a partir de la distribución posterior de θ
+resultados_binomiales_posterior <- sapply(theta_posterior_sim, function(theta) {
+  rbinom(1, n_muestra_1, theta)
+})
+
+# Visualización de los resultados binomiales simulados
+ggplot(data.frame(resultados = resultados_binomiales_posterior), aes(x = resultados)) +
+  geom_histogram(aes(y = ..density..), bins = 15, fill = color_defecto, color = "black") +
+  geom_vline(aes(xintercept = mean(resultados_binomiales_posterior)),
+             color = "blue", linetype = "dashed", linewidth = 1) +  # Línea media
+  labs(
+    title = "Resultados de Pruebas Binomiales Simuladas a partir de la Distribución Posterior de θ",
+    subtitle = paste0("n = ", n_muestra_1, 
+                      " | Media posterior = ", round(mean(theta_posterior_sim), 3),
+                      " | Var posterior = ", round(var(theta_posterior_sim), 3)),
+    x = "Número de respuestas afirmativas",
+    y = "Densidad"
+  ) +
+  coord_cartesian(xlim = c(0, n_muestra_1))  # Limitar el eje x entre 0 y n_muestra_1
+
+
+```
+
 :::
 
 Lo que acabas de representar es la **distribución predictiva posterior** del modelo ajustado con la muestra 1 del estudio.
@@ -143,6 +284,63 @@ Lo que acabas de representar es la **distribución predictiva posterior** del mo
 -   Obten las distribuciones posterior y predictiva posterior con la muestra 2, **asumiendo desconocimiento total sobre la tasa de aceptación** (i.e., distribución no informativa).
 
 ::: {#respuesta-6 .callout-note}
+```{r}
+# Número de casos, éxitos y fracasos en la primera muestra 2
+n_muestra_2<-133
+n_aceptaciones_muestra_2<-sum(aceptacion_muestra_2$resp_descarga_app == "Si")
+n_fracasos_muestra_2 <- n_muestra_2 - n_aceptaciones_muestra_2
+
+#Definir una nueva beta no informativa
+alpha2<-1
+beta2<-1
+
+# Actualizar los parámetros de la distribución Beta posterior (sumar aciertos a alfa y fracasos a beta)
+alpha_posterior2 <- alpha2 + n_aceptaciones_muestra_2
+beta_posterior2 <- beta2 + n_fracasos_muestra_2
+
+# Muestreo MC de la distribución Beta posterior. 
+theta_posterior_sim2 <- rbeta(n_mcse, alpha_posterior2, beta_posterior2) #Mismo n para obtener resultados comparables.
+
+# Visualizar la distribución posterior
+ggplot(data.frame(theta = theta_posterior_sim2), aes(x = theta)) +
+  geom_histogram(aes(y = ..density..), bins = 50, fill = color_defecto, color = "black") +
+  stat_function(fun = dbeta, args = list(shape1 = alpha_posterior2, shape2 = beta_posterior2),
+                color = "red", linetype = "dashed", linewidth = 1) +
+  labs(
+    title = "Distribución Posterior Simulada de θ (Beta Posterior)",
+    subtitle = paste0("n = ", n_muestra_2, 
+                      " | Media = ", round(mean(theta_posterior_sim2), 3), 
+                      " | Var = ", round(var(theta_posterior_sim2), 3)),
+    x = expression(theta),
+    y = "Densidad"
+  ) +
+  coord_cartesian(xlim = c(0, 1))  # Limitar el eje x entre 0 y 1
+```
+```{r}
+# Simulación de resultados binomiales a partir de la distribución posterior (similar al ejercicio 5)
+
+# Simulación de los resultados binomiales a partir de la distribución posterior 2 de θ
+resultados_binomiales_posterior2 <- sapply(theta_posterior_sim2, function(theta) {
+  rbinom(1, n_muestra_2, theta)
+})
+
+# Visualización de los resultados binomiales simulados
+ggplot(data.frame(resultados = resultados_binomiales_posterior2), aes(x = resultados)) +
+  geom_histogram(aes(y = ..density..), bins = 15, fill = color_defecto, color = "black") +
+  geom_vline(aes(xintercept = mean(resultados_binomiales_posterior2)),
+             color = "blue", linetype = "dashed", linewidth = 1) +  # Línea media
+  labs(
+    title = "Resultados de Pruebas Binomiales Simuladas a partir de la Distribución Posterior de θ",
+    subtitle = paste0("n = ", n_muestra_2, 
+                      " | Media posterior = ", round(mean(theta_posterior_sim2), 3),
+                      " | Var posterior = ", round(var(theta_posterior_sim2), 3)),
+    x = "Número de respuestas afirmativas",
+    y = "Densidad"
+  ) +
+  coord_cartesian(xlim = c(0, n_muestra_2))  # Limitar el eje x entre 0 y n_muestra_1
+
+```
+
 :::
 
 ## Comprobaciones predictivas posteriores
@@ -152,6 +350,47 @@ Lo que acabas de representar es la **distribución predictiva posterior** del mo
 -   Dada la distribución posterior tras el ajuste del modelo con la muestra 2, aproxima la distribución predictiva posterior para un tamaño muestral de `{r} n_muestra_1`. Represéntala junto con la distribución predictiva posterior resultante de ajustar el modelo con la muestra 1, y representa mediante una línea vertical el valor obtenido de la muestra empírica 1.
 
 ::: {#respuesta-7 .callout-note}
+```{r}
+# Simulación de la distribución predictiva posterior para la muestra 2 con n_muestra_1 (22)
+resultados_binomiales_posterior_2_muestra_1 <- sapply(theta_posterior_sim2, function(theta) {
+  rbinom(1, n_muestra_1, theta)
+})
+
+# Visualización de ambas distribuciones predictivas y línea vertical para el valor de la muestra empírica 1
+ggplot() +
+  # Distribución predictiva posterior para la muestra 1 (usando theta_posterior_sim)
+  geom_histogram(data = data.frame(resultados = resultados_binomiales_posterior, 
+                                    grupo = rep("Muestra 1", length(resultados_binomiales_posterior))),
+                 aes(x = resultados, y = ..density.., fill = grupo), 
+                 bins = 15, color = "black", alpha = 0.6) +
+  
+  # Distribución predictiva posterior para la muestra 2 (usando theta_posterior_sim_2)
+  geom_histogram(data = data.frame(resultados = resultados_binomiales_posterior_2_muestra_1, 
+                                    grupo = rep("Muestra 2", length(resultados_binomiales_posterior_2_muestra_1))),
+                 aes(x = resultados, y = ..density.., fill = grupo), 
+                 bins = 15, color = "black", alpha = 0.6) +
+  
+  # Línea vertical para el valor de la muestra empírica 1 (número de respuestas afirmativas en la muestra 1)
+  geom_vline(xintercept = n_aceptaciones_muestra_1, color = PALETA[3], linetype = "dashed", linewidth = 1) +
+  
+  labs(
+    title = "Distribuciones Predictivas Posteriores para las Muestras 1 y 2",
+    subtitle = paste0("n_muestra_1 = ", n_muestra_1),
+    x = "Número de respuestas afirmativas",
+    y = "Densidad"
+  ) +
+  scale_fill_manual(values = c(color_defecto, PALETA[2])) +  # Paleta de colores personalizada
+  theme_minimal() +
+  theme(
+    legend.title = element_blank(),  # Sin título para la leyenda
+    legend.position = "top",         # Coloca la leyenda en la parte superior
+    legend.text = element_text(size = 10)  # Tamaño de texto de la leyenda
+  ) +
+  scale_x_continuous(breaks = seq(0, n_muestra_1, by = 2))  # Ajusta las marcas del eje x
+
+
+```
+Los resultados son coherentes con lo observados anteriormente: El ajuste con el n1 ofrece un theta medio posterior de 0,749 (unos 17 sí), mientras que el ajuste con n2 ofrece un theta cercano a 0,5 (unos 11 sí).
 :::
 
 ### Pregunta 8
@@ -159,6 +398,23 @@ Lo que acabas de representar es la **distribución predictiva posterior** del mo
 -   Calcula, en el modelo ajustado con la muestra 2, la probabilidad de obtener un valor mayor o igual / menor o igual que la primera muestra empírica. ¿Cómo se representan estas probabilidades en el gráfico anterior?
 
 ::: {#respuesta-8 .callout-note}
+```{r}
+#El cálculo es bastante directo mediante las medias de las posteriores
+
+# Calcular las probabilidades de obtener un valor menor o igual y mayor o igual
+prob_menor_igual_muestra_2 <- mean(resultados_binomiales_posterior_2_muestra_1 <= n_aceptaciones_muestra_1)
+prob_mayor_igual_muestra_2 <- mean(resultados_binomiales_posterior_2_muestra_1 >= n_aceptaciones_muestra_1)
+
+# Mostrar las probabilidades
+resultados9<- tibble(
+  "Probabilidad Menor o Igual" = prob_menor_igual_muestra_2,
+  "Probabilidad Mayor o Igual" = prob_mayor_igual_muestra_2
+)
+resultados9
+```
+A nivel de interpretación, P(menor o igual) se representa como el área a la izquierda del valor observado de la primera muestra empírica (la línea vertical) en la distribución predictiva posterior de la muestra 2.
+La P (mayor o igual) es al revés, el área desde la línea a la derecha hasta el final de la distribución predictiva posterior de la muestra 2.
+
 :::
 
 ### Pregunta 9
@@ -166,6 +422,7 @@ Lo que acabas de representar es la **distribución predictiva posterior** del mo
 -   Si te preguntasen por el *valor-*$p$ *predictivo posterior* de la hipótesis que "la muestra 1 esté extraída de la misma población que la muestra 2", ¿qué valor reportarías y cómo lo interpretarías?
 
 ::: {#respuesta-9 .callout-note}
+#Reportaría el valor P (mayor o igual) ya que, en una analogía con el p-valor frecuentista (salvando las distancias), nos informaría de que el valor que hemos obtenido en la primera muestra es muy extremo en comparación con lo esperado a partir de la dstribución posterior de los datos de la segunda muestra.
 :::
 
 ### Pregunta 10
@@ -173,6 +430,26 @@ Lo que acabas de representar es la **distribución predictiva posterior** del mo
 -   Prueba a hacerlo a la inversa; es decir, ajusta el modelo con la muestra 1, y después realiza la *comprobación predictiva posterior* de si la muestra 2 proviene de la misma población que la muestra 1. ¿Qué conclusión obtendrías?
 
 ::: {#respuesta-10 .callout-note}
+```{r}
+# Simulación de la distribución predictiva posterior para la muestra 2 con n_muestra_1 (22)
+resultados_binomiales_posterior_1_muestra_2 <- sapply(theta_posterior_sim, function(theta) {
+  rbinom(1, n_muestra_2, theta)
+})
+
+#El cálculo vuelve a ser bastante directo mediante las medias de las posteriores
+
+# Calcular las probabilidades de obtener un valor menor o igual y mayor o igual
+prob_menor_igual_muestra_1 <- mean(resultados_binomiales_posterior_1_muestra_2 <= n_aceptaciones_muestra_2)
+prob_mayor_igual_muestra_1 <- mean(resultados_binomiales_posterior_1_muestra_2 >= n_aceptaciones_muestra_2)
+
+# Mostrar las probabilidades
+resultados10<- tibble(
+  "Probabilidad Menor o Igual" = prob_menor_igual_muestra_1,
+  "Probabilidad Mayor o Igual" = prob_mayor_igual_muestra_1
+)
+resultados10
+```
+#Los resultados son prácticamente idénticos en términos de información, solo que la cola interpretable ahora es la menor, que vuelve a mostrar lo improbable que es que el dato de la muestra 1 correspondan con los de la 2 de acuerdo a sus distribuciones a posteriori.
 :::
 
 # Ejercicio 2: Modelo gamma-Poisson de la "tasa de fertilidad"
