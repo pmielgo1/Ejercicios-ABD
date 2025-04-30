@@ -18,7 +18,7 @@ callout-appearance: minimal
 
 En este tema hemos estudiado el método de Monte Carlo.
 Ahora vamos a ponerlo en práctica, comparando sus resultados con lo que ya conocemos de temas anteriores.
-En esta ocasión, la entrega consiste en un ejercicio sobre el modelo normal-normal, y otro sobre .
+En esta ocasión, la entrega consiste en un ejercicio sobre el modelo normal-normal, y otro sobre el modelo Poisson-Gamma.
 
 Al igual que en el Tema 3, configuramos primero el entorno.
 

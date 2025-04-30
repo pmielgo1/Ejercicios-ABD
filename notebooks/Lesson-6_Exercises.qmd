@@ -79,6 +79,9 @@ aceptacion_muestra_1 <- tibble(
   )
 )
 
+# Tamaño de la muestra (necesario para enunciados más adelante)
+n_muestra_1 <- aceptacion_muestra_1 |> count() |> pull()
+
 aceptacion_muestra_2 <- tibble(
   id_participante   = 1:113,
   resp_descarga_app = c(
@@ -327,7 +330,7 @@ max_poisson <- function(lambda, n) {
 
 ### Pregunta 19
 
--   Utilizando la aproximación a la distribución posterior de la pregunta 11 y la función `max_poisson()` que has escrito, determina el valor-$p$ predictivo posterior de obtener, según el modelo ajustado, una muestra de mujeres universitarias de tamaño `{r} n_con` en la que el máximo número de hijos sea igual o menor que `{r} max_hijos_emp` e interpreta el resultado.
+-   Utilizando la aproximación a la distribución posterior de la pregunta 11 y la función `max_poisson()` que has escrito, determina el valor-$p$ predictivo posterior de obtener, según el modelo ajustado, una muestra de mujeres universitarias de tamaño `{r} n_con` en la que el máximo número de hijos sea igual o menor que el máximo empírico obtenido en la pregunta 17, e interpreta el resultado.
 
 *(NOTA: ¡Cuidado! Probablemente tengas que "iterar" sobre las muestras de la distribución posterior)*
 
