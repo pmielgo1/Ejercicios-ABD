@@ -316,7 +316,7 @@ alpha_posterior2 <- alpha2 + n_aceptaciones_muestra_2
 beta_posterior2 <- beta2 + n_fracasos_muestra_2
 
 # Muestreo MC de la distribución Beta posterior. 
-theta_posterior_sim2 <- rbeta(n_mcse, alpha_posterior2, beta_posterior2) #Mismo n para obtener resultados comparables.
+theta_posterior_sim2 <- rbeta(n_mcse, alpha_posterior2, beta_posterior2) #Mismo n para obtener resultados comparables en términos de error de simulación.
 
 # Visualizar la distribución posterior
 ggplot(data.frame(theta = theta_posterior_sim2), aes(x = theta)) +
@@ -906,7 +906,8 @@ resultados19
 ::: {#respuesta-20 .callout-note}
 ```{r}
 
-# Paso 1: Definir el estadístico de comparación
+# Se busca el valor p predictivo para una muestra de mujeres universitarias de tamaño `{r} n_con` en la que el nñumero de mujeres con 4 de hijos sea igual o menor que el máximo empírico.
+
 # Número de mujeres con 4 hijos en la muestra empírica (para el grupo con título universitario)
 n_4_hijos_empirico_con <- sum(fertilidad_gss_1990$n_hijos == 4 & fertilidad_gss_1990$titulo_uni == "con")
 
@@ -920,15 +921,14 @@ mujeres_4_hijos_con_simuladas <- sapply(lambda_con, function(lambda) {
 
 # Comparar el estadístico empírico con las simulaciones
 # Contar cuántas simulaciones tienenmás mujeres con 4 hijos
-conteo_menor_o_igual_con <- sum(mujeres_4_hijos_con_simuladas >= n_4_hijos_empirico_con)
-
+conteo_menor_o_igual_con <- sum(mujeres_4_hijos_con_simuladas <= n_4_hijos_empirico_con)
 
 # Calcular el valor-p
-valor_p_con <- conteo_menor_o_igual_con / length(mujeres_4_hijos_con_simuladas)
-valor_p_con
+valor_p_con_menor <- conteo_menor_o_igual_con / length(mujeres_4_hijos_con_simuladas)
+valor_p_con_menor
 
 
 
 ```
-#El valor p predictivo alto indica que es bastante probable que el número de mujeres con 4 hijos observado en la muestra empírica pudiera haber ocurrido (no es muy extremo) bajo el modelo de distribución posterior.
+#El valor p predictivo medio indica que es relativamente probable que el número de mujeres con 4 hijos observado en la muestra empírica pudiera haber ocurrido (no es muy extremo) bajo el modelo de distribución posterior.
 :::
