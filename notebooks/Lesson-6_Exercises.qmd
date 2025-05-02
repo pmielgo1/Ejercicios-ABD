@@ -895,7 +895,7 @@ resultados19
 
 
 ```
-# Los valores p predictivos elevados de ambos grupos (incluso del sin con n_con), indican que el número de máximos obtenidos en cada modelo posterior simulado predictivo es plausible (no muy extremo) respecto al empírico.
+# Cada valor p predictivo indica el % de simulaciones que tienen máximos menores que los datos empíricos. El valor especialmente alto del grupo con podría hablar de una discrepancia entre el modelo y lo observado.
 
 :::
 
@@ -930,5 +930,7 @@ valor_p_con_menor
 
 
 ```
-#El valor p predictivo medio indica que es relativamente probable que el número de mujeres con 4 hijos observado en la muestra empírica pudiera haber ocurrido (no es muy extremo) bajo el modelo de distribución posterior.
+#El valor p predictovo indica que un 38,7% de las observaciones empíricas tiene un número de mujeres con 4 hijos mayor que los datos empíricos.
+
+#El valor p predictivo moderado indica que es relativamente probable que el número de mujeres con 4 hijos observado en la muestra empírica pudiera haber ocurrido (no es muy extremo) bajo el modelo de distribución posterior.
 :::
