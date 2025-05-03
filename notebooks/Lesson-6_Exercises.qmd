@@ -111,11 +111,12 @@ Como en temas anteriores, vamos a utilizar una distribución no informativa para
 # Parámetros de la distribución no informativa Beta(1,1)
 alpha <- 1
 beta <- 1
-var_teorica <- (alpha * beta) / ((alpha + beta)^2 * (alpha + beta + 1))
+var_teorica <- (alpha * beta) / ((alpha + beta)^2 * (alpha + beta + 1)) #Da 1/12
 
-# Cálculo del tamaño muestral para que el MCSE ≤ 0.01
+# Cálculo del tamaño muestral para que el MCSE ≤ 0.01 e IC=99% (que debe ser bilateral)
 mcse_requerido <- 0.01 #Al ser menor o igual, no hace falta calcularlo con redondeo de 0,05 como en el Tema5.
-n_mcse <- ceiling(var_teorica / mcse_requerido^2) #Será el número de simulaciones a usar.
+z_99 <- qnorm(0.995) #Por ser bilateral
+n_mcse <- ceiling((z_99^2 * var_teorica) / (mcse_requerido^2)) #Será el número de simulaciones a usar.
 
 # Simulación para la predicción a priorir
 theta_sim <- rbeta(n_mcse, alpha, beta) #Genera el número de thetas que se calculó antes en la distribución a priori.
@@ -128,40 +129,41 @@ mcse_sim  <- sd(theta_sim) / sqrt(n_mcse) #MCSE, solo por comprobar que efectiva
 ggplot(data.frame(theta = theta_sim), aes(x = theta)) +
   geom_histogram(aes(y = ..density..), bins = 50, fill = color_defecto, color = "black") +
   stat_function(fun = dbeta, args = list(shape1 = alpha, shape2 = beta),
-                color = "red", linetype = "dashed", linewidth = 1) +
+                color = "red", linetype = "dashed", linewidth = 1) + #Nota: este argumento es para funciones continuas, no discretas
   labs(
     title = "Distribución previa simulada de θ (Beta(1,1))",
     subtitle = paste0("n = ", n_mcse, 
                       " | Media = ", round(media_sim, 3), #He tenido que añadir el round manualmente.
                       " | Var = ", round(var_sim, 3),
-                      " | MCSE ≈ ", round(mcse_sim, 2)),
+                      " | MCSE (99%) = ", round(2*mcse_sim, 2)),
     x = expression(theta),
     y = "Densidad"
   ) +
   coord_cartesian(xlim = c(0, 1))  # Limita el eje X entre 0 y 1, lo que abarca el rango uniforme de Beta (1,1).
 ```
-#Se observa que no hay patrones claros en la distribución. Como dato interesante, si se aumenta el número de bins a valores muy altos o muy bajos, la distribución se vuelve perfectamente uniforme.
+
+#Se observa que no hay patrones claros en la distribución.
+Como dato interesante, si se aumenta el número de bins a valores muy altos o muy bajos, la distribución se vuelve perfectamente uniforme.
 
 ```{r}
+#Analíticamente
 comparacion <- tibble(
-  parametro = c("Media", "Varianza", "MCSE"),
+  parametro = c("Media", "Varianza"),
   teorico   = c(
     alpha / (alpha + beta),
-    (alpha * beta) / ((alpha + beta)^2 * (alpha + beta + 1)),
-    mcse_requerido
+    (alpha * beta) / ((alpha + beta)^2 * (alpha + beta + 1))
   ),
-  simulado  = c(media_sim, var_sim, mcse_sim),
+  simulado  = c(media_sim, var_sim),
   diferencia = c(
     abs(media_sim - (alpha / (alpha + beta))),
-    abs(var_sim - ((alpha * beta) / ((alpha + beta)^2 * (alpha + beta + 1)))),
-    abs(mcse_sim - mcse_requerido)
+    abs(var_sim - ((alpha * beta) / ((alpha + beta)^2 * (alpha + beta + 1))))
   )
 )
 comparacion
 
 ```
-#Las diferencias entre el resultado analítico y el simulado son mínimas.
 
+#Las diferencias entre el resultado empírico y el simulado son mínimas.
 :::
 
 ### Pregunta 2
@@ -170,17 +172,15 @@ comparacion
 
 ::: {#respuesta-2 .callout-note}
 ```{r}
-# Definir el tamaño de la muestra
+# Definir el tamaño de la muestra (ya dado)
 n_muestra_1
 
-# Simulación de los resultados binomiales para cada valor de theta simulada usando sapply
-resultados_binomiales <- sapply(theta_sim, function(theta) {
-  rbinom(1, n_muestra_1, theta) # theta será cada valor de theta_sim.
-})
+# Simulación de los resultados binomiales para cada valor de theta simulada
+resultados_binomiales <- rbinom(length(theta_sim), size = n_muestra_1, prob = theta_sim)
 
 # Histograma de la distribución predictiva previa
 ggplot(data.frame(resultados = resultados_binomiales), aes(x = resultados)) +
-  geom_histogram(aes(y = ..density..), bins = 20, fill = color_defecto, color = "black") +
+  geom_histogram(aes(y = ..density..), bins = 23, fill = color_defecto, color = "black") +
   labs(
     title = "Distribución Predictiva Previa de Aceptación (Primera Muestra)",
     subtitle = paste0("n = ", n_muestra_1, 
@@ -192,6 +192,7 @@ ggplot(data.frame(resultados = resultados_binomiales), aes(x = resultados)) +
   coord_cartesian(xlim = c(0, n_muestra_1))  # Limita el eje entre 0 y n=22
 ```
 
+#De nuevo, ningún patrón claro.
 :::
 
 ### Pregunta 3
@@ -204,9 +205,12 @@ ggplot(data.frame(resultados = resultados_binomiales), aes(x = resultados)) +
 n_aceptaciones_muestra_1 <- sum(aceptacion_muestra_1$resp_descarga_app == "Si")
 
 # Calcular el centil en el que se encuentra 17
-centil_muestra1 <- mean(resultados_binomiales <= n_aceptaciones_muestra_1) * 100 #El centil da un valor decimal porque el cálculo es meramente matemático, por lo que se puede redondear de varias maneras. Aquí, con un redondeo simple.
+centil_muestra1 <- mean(resultados_binomiales < n_aceptaciones_muestra_1) * 100 
 
+#El centil da un valor decimal porque el cálculo es meramente matemático, por lo que se puede redondear de varias maneras. Aquí, con un redondeo simple, aunque también se podría hacer a la parte entera con floor().
 centil_muestra_1<-round(centil_muestra1,0)
+#centil_muestra_1<-floor(centil_muestra1)
+
 
 # Probabilidad de obtener un valor mayor o igual al observado en simulaciones de MC
 prob_mayor_igual <- mean(resultados_binomiales >= n_aceptaciones_muestra_1)
@@ -217,14 +221,14 @@ prob_menor_igual <- mean(resultados_binomiales <= n_aceptaciones_muestra_1)
 # Resultados
 resultados_tibble <- tibble(
   Centil = centil_muestra_1,
-  Probabilidad_Mayor_O_Igual = prob_mayor_igual,
-  Probabilidad_Menor_O_Igual = prob_menor_igual
+  Probabilidad_Mayor_O_Igual = round(prob_mayor_igual, 3),
+  Probabilidad_Menor_O_Igual = round(prob_menor_igual, 3)
 )
 resultados_tibble
 ```
-#Las probabilidades no suman exactamente 1 porque la desigualdad toma valores repetidos etre casos (es >= y <= en ambos casos, no > en uno y <= en otro, o viceversa).
 
-
+#El centil indica que el 74% de los datos se encuentran por debajo del valor observado.
+#Las probabilidades no suman exactamente 1 porque la desigualdad toma valores repetidos etre casos (es \>= y \<= en ambos casos, no \> en uno y \<= en otro, o viceversa).
 :::
 
 ## Distribución predictiva posterior
@@ -261,7 +265,6 @@ ggplot(data.frame(theta = theta_posterior_sim), aes(x = theta)) +
   ) +
   coord_cartesian(xlim = c(0, 1))  # Limitar el eje x entre 0 y 1, rango posible de theta.
 ```
-
 :::
 
 ### Pregunta 5
@@ -271,10 +274,8 @@ ggplot(data.frame(theta = theta_posterior_sim), aes(x = theta)) +
 ::: {#respuesta-5 .callout-note}
 ```{r}
 
-# Simulación de los resultados binomiales a partir de la  posterior
-resultados_binomiales_posterior <- sapply(theta_posterior_sim, function(theta) {
-  rbinom(1, n_muestra_1, theta)
-})
+# Simulación de los resultados binomiales a partir de la posterior
+resultados_binomiales_posterior <- rbinom(length(theta_posterior_sim), size = n_muestra_1,prob = theta_posterior_sim)
 
 # Visualización de los resultados binomiales simulados
 ggplot(data.frame(resultados = resultados_binomiales_posterior), aes(x = resultados)) +
@@ -291,7 +292,6 @@ ggplot(data.frame(resultados = resultados_binomiales_posterior), aes(x = resulta
   ) +
   coord_cartesian(xlim = c(0, n_muestra_1))
 ```
-
 :::
 
 Lo que acabas de representar es la **distribución predictiva posterior** del modelo ajustado con la muestra 1 del estudio.
@@ -335,10 +335,8 @@ ggplot(data.frame(theta = theta_posterior_sim2), aes(x = theta)) +
 ```
 
 ```{r}
-# Simulación de los resultados binomiales a partir de la distribución posterior 2 de θ
-resultados_binomiales_posterior2 <- sapply(theta_posterior_sim2, function(theta) {
-  rbinom(1, n_muestra_2, theta)
-})
+# Simulación de los resultados binomiales a partir de la distribución posterior 2 de theta
+resultados_binomiales_posterior2 <- rbinom(length(theta_posterior_sim2), size = n_muestra_2,prob = theta_posterior_sim2)
 
 # Visualización de los resultados binomiales simulados
 ggplot(data.frame(resultados = resultados_binomiales_posterior2), aes(x = resultados)) +
@@ -355,7 +353,6 @@ ggplot(data.frame(resultados = resultados_binomiales_posterior2), aes(x = result
   ) +
   coord_cartesian(xlim = c(0, n_muestra_2))
 ```
-
 :::
 
 ## Comprobaciones predictivas posteriores
@@ -366,10 +363,8 @@ ggplot(data.frame(resultados = resultados_binomiales_posterior2), aes(x = result
 
 ::: {#respuesta-7 .callout-note}
 ```{r}
-# Simulación de la distribución predictiva posterior para la muestra 2 con n_muestra_1 (22)
-resultados_binomiales_posterior_2_muestra_1 <- sapply(theta_posterior_sim2, function(theta) {
-  rbinom(1, n_muestra_1, theta)
-})
+# Simulación de la distribución predictiva posterior para la muestra 2 con n_muestra_1
+resultados_binomiales_posterior_2_muestra_1 <- rbinom(length(theta_posterior_sim2), size = n_muestra_1,prob = theta_posterior_sim2)
 
 # Visualización de ambas distribuciones predictivas y línea vertical para el valor de la muestra empírica 1
 ggplot() +
@@ -385,9 +380,8 @@ ggplot() +
                  aes(x = resultados, y = ..density.., fill = grupo), 
                  bins = 15, color = "black", alpha = 0.6) +
   
-  # Línea vertical para el valor de la muestra empírica 1 (número de respuestas afirmativas en la muestra 1)
+  # Línea vertical para el valor de la muestra empírica 1 (número de éxitos en la muestra 1)
   geom_vline(xintercept = n_aceptaciones_muestra_1, color = PALETA[3], linetype = "dashed", linewidth = 1) +
-  
   labs(
     title = "Distribuciones Predictivas Posteriores para las Muestras 1 y 2",
         subtitle = paste0("n muestral predictivo = ", n_muestra_1),
@@ -401,9 +395,8 @@ ggplot() +
     legend.position = "top",         
     legend.text = element_text(size = 10) 
   ) +
-  scale_x_continuous(breaks = seq(0, n_muestra_1, by = 1))  # By ajusta las marcas del eje x para mayor precisión
+  scale_x_continuous(breaks = seq(0, n_muestra_1, by = 1))  # by ajusta las marcas del eje x para mayor precisión
 ```
-
 :::
 
 ### Pregunta 8
@@ -411,23 +404,24 @@ ggplot() +
 -   Calcula, en el modelo ajustado con la muestra 2, la probabilidad de obtener un valor mayor o igual / menor o igual que la primera muestra empírica. ¿Cómo se representan estas probabilidades en el gráfico anterior?
 
 ::: {#respuesta-8 .callout-note}
-
 #El cálculo es bastante directo mediante las medias de las posteriores
+
 ```{r}
 # Calcular las probabilidades de obtener un valor menor o igual y mayor o igual
 prob_menor_igual_muestra_2 <- mean(resultados_binomiales_posterior_2_muestra_1 <= n_aceptaciones_muestra_1)
 prob_mayor_igual_muestra_2 <- mean(resultados_binomiales_posterior_2_muestra_1 >= n_aceptaciones_muestra_1)
 
-# Mostrar las probabilidades
+# Resultados
 resultados9 <- tibble(
   "Probabilidad Menor o Igual" = round(prob_menor_igual_muestra_2, 3),
   "Probabilidad Mayor o Igual" = round(prob_mayor_igual_muestra_2, 3)
 )
 resultados9
 ```
+
 #A nivel de interpretación, P(menor o igual) se representa como el área a la izquierda del valor observado de la primera muestra empírica (la línea vertical) en la distribución predictiva posterior de la muestra 2. Al ser alto, indica que la probabilidad de encontrar un valor menor o igual a X bajo el modelo es alta.
 
-#La P (mayor o igual) es al revés, el área desde la línea a la derecha hasta el final de la distribución predictiva posterior de la muestra 2. Al ser bajo, indica que la probabilidad de encontrar un valor mayor o igual a X bajo el modelo es baja.
+#La P (mayor o igual) es al revés, el área desde la línea a la derecha hasta el final de la distribución predictiva posterior de la muestra 2. Al ser bajo (aunque mayor que el valor crítico típco frecuentista 0,05), indica que la probabilidad de encontrar un valor mayor o igual a X bajo el modelo es baja.
 :::
 
 ### Pregunta 9
@@ -435,10 +429,9 @@ resultados9
 -   Si te preguntasen por el *valor-*$p$ *predictivo posterior* de la hipótesis que "la muestra 1 esté extraída de la misma población que la muestra 2", ¿qué valor reportarías y cómo lo interpretarías?
 
 ::: {#respuesta-9 .callout-note}
-#Reportaría el valor P (mayor o igual) ya que, en una analogía con el p-valor frecuentista (salvando las distancias), nos informaría de que el valor que hemos obtenido en la primera muestra es muy extremo en comparación con lo esperado a partir de la distribución posterior de los datos de la segunda muestra; es decir, es muy improbable encontrarvalores iguales o mayores al empírico.
+#Reportaría el valor P (mayor o igual) ya que, en una analogía con el p-valor frecuentista (salvando las distancias), nos informaría de que el valor que hemos obtenido en la primera muestra es muy extremo por encima (ya que el valor es superior a la tendencia central de la 2) en comparación con lo esperado a partir de la distribución posterior de los datos de la segunda muestra; es decir, es muy improbable encontrarvalores iguales o mayores al empírico.
 
-#En otra línea de interpretación, sugiere que el modelo 2 con n_muestra_1 no ajusta bien a los datos, ya que es muy improbable observar el parámetro empírico.
-
+#En otra línea de interpretación, sugiere que el modelo 2 con n_muestra_1 no ajusta bien a los datos, ya que es muy improbable observar el valor empírico.
 :::
 
 ### Pregunta 10
@@ -447,12 +440,10 @@ resultados9
 
 ::: {#respuesta-10 .callout-note}
 ```{r}
-#Y analíticamente, los valores P predictivos:
+#Analíticamente, los valores P predictivos:
 
-# Simulación de la distribución predictiva posterior para la muestra 2 con n_muestra_1 (22)
-resultados_binomiales_posterior_1_muestra_2 <- sapply(theta_posterior_sim, function(theta) {
-  rbinom(1, n_muestra_2, theta)
-})
+# Simulación de la distribución predictiva posterior para la muestra 1 con n_muestra_2
+resultados_binomiales_posterior_1_muestra_2 <- rbinom(length(theta_posterior_sim), size = n_muestra_2,prob = theta_posterior_sim)
 
 #El cálculo vuelve a ser bastante directo mediante las medias de las posteriores
 prob_menor_igual_muestra_1 <- mean(resultados_binomiales_posterior_1_muestra_2 <= n_aceptaciones_muestra_2)
@@ -467,6 +458,7 @@ resultados10
 
 
 ```
+
 #Los resultados son prácticamente idénticos en términos de información, solo que la cola interpretable ahora es la menor, que vuelve a mostrar lo improbable que es que el dato de la muestra 1 correspondan con los de la 2 de acuerdo a sus distribuciones a posteriori.
 
 ```{r}
@@ -479,15 +471,15 @@ ggplot() +
                  aes(x = resultados, y = ..density.., fill = grupo), 
                  bins = 15, color = "black", alpha = 0.6) +
   
-  # Distribución predictiva posterior para la muestra 2 (usando theta_posterior_sim_2)
+  # Distribución predictiva posterior para la muestra 2
   geom_histogram(data = data.frame(resultados = resultados_binomiales_posterior2, 
                                    grupo = rep("Muestra 2", length(resultados_binomiales_posterior2))),
                  aes(x = resultados, y = ..density.., fill = grupo), 
                  bins = 15, color = "black", alpha = 0.6) +
   
-  # Línea vertical para el valor de la muestra empírica 1 (número de respuestas afirmativas en la muestra 1)
-  geom_vline(xintercept = n_aceptaciones_muestra_2, color = PALETA[3], linetype = "dashed", linewidth = 1) +
+  # Línea vertical para el valor de la muestra empírica 1 (número de éxitos en la muestra 1)
   
+  geom_vline(xintercept = n_aceptaciones_muestra_2, color = PALETA[3], linetype = "dashed", linewidth = 1) +
   labs(
     title = "Distribuciones Predictivas Posteriores para las Muestras 1 y 2",
     subtitle = paste0("n muestral predictivo = ", n_muestra_2),
@@ -497,14 +489,13 @@ ggplot() +
   scale_fill_manual(values = c(color_defecto, PALETA[2])) +
   theme_minimal() + # He probado a quitarlo, pero se ve mucho más congestionado
   theme(
-    legend.title = element_blank(),  
+    legend.title = element_blank(), #Este comando hace que no aparezca "grupo" (el título de la leyenda)
     legend.position = "top",         
     legend.text = element_text(size = 10) 
   ) +
   scale_x_continuous(breaks = seq(0, n_muestra_2, by = 5))  # By ajusta las marcas del eje x para mayor precisión
 
 ```
-
 :::
 
 :::
@@ -608,14 +599,13 @@ ggplot(df_lambda, aes(x = lambda, fill = grupo)) +
   scale_fill_manual(values = c(PALETA[1], PALETA[2])) +
    theme(
     legend.position = "top",
-    legend.title = element_blank(),
+    legend.title = element_blank(), #Este comando hace que no aparezca "grupo" (el título de la leyenda)
     legend.text = element_text(size = 10),
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    plot.subtitle = element_text(hjust = 0.5)
+    plot.title = element_text(face = "bold", hjust = 0.5),  # hjust centra el texto sobre el gráfico
+    plot.subtitle = element_text(hjust = 0.5) 
   )
 
 ```
-
 :::
 
 ### Pregunta 12
@@ -624,8 +614,8 @@ ggplot(df_lambda, aes(x = lambda, fill = grupo)) +
 
 ::: {#respuesta-12 .callout-note}
 ```{r}
-# Para cada valor de lambda en la posterior, simula un valor de hijos
-hijos_sin <- rpois(length(lambda_sin), lambda_sin) # rpois() ya maneja adecuadamente la vectorización requerida.
+# Para cada valor de lambda en la posterior, simular un valor de hijos
+hijos_sin <- rpois(length(lambda_sin), lambda_sin)
 hijos_con <- rpois(length(lambda_con), lambda_con)
 
 # Crear data frame unificado
@@ -645,10 +635,11 @@ ggplot(df_predictiva, aes(x = hijos, fill = grupo)) +
   ) +
   theme(
     legend.position = "top",
-    plot.title = element_text(face = "bold", hjust = 0.5)
+    legend.title = element_blank(),
+    plot.title = element_text(face = "bold", hjust = 0.5), # hjust centra el texto sobre el gráfico
+    plot.subtitle = element_text(hjust = 0.5) 
   )
 ```
-
 :::
 
 ## Inferencia sobre la distribución predictiva posterior
@@ -660,22 +651,24 @@ En base a las distribuciones predictivas posteriores, obtén las respuetas a con
 -   ¿Cuáles son las probabilidades de que una mujer (de 40 años en los 90 en USA) con 4 hijos o más sea o no titulada universitaria? ¿Cuál es la "odds" de que no sea titulada universitaria?
 
 ::: {#respuesta-13 .callout-note}
+
+#Nota importante: se asume que la proporción muestral es la poblacional.
 ```{r}
-# Paso 1: Crear data frame combinado con grupo y si tiene ≥4 hijos (argumento lógico T/F)
+# Crear data frame combinado con grupo y si tiene ≥4 hijos (argumento lógico T/F)
 df_combinado <- bind_rows(
   tibble(hijos = hijos_sin, grupo = "Sin título universitario", tiene_4_o_mas_hijos = hijos_sin >= 4),
   tibble(hijos = hijos_con, grupo = "Con título universitario", tiene_4_o_mas_hijos = hijos_con >= 4)
 )
 
-# Paso 2: Filtrar solo simulaciones con 4 o más hijos (los T)
+# Filtrar solo simulaciones con 4 o más hijos (los T)
 df_4_hijos <- df_combinado %>%
   filter(tiene_4_o_mas_hijos)
 
-# Paso 3: Conteo por grupo
+# Conteo por grupo
 conteos <- df_4_hijos %>%
   count(grupo, name = "n")
 
-# Paso 4: Probabilidades condicionales
+# Probabilidades condicionales
 total <- sum(conteos$n)
 prob_sin <- conteos %>% filter(grupo == "Sin título universitario") %>% pull(n) / total
 prob_con <- conteos %>% filter(grupo == "Con título universitario") %>% pull(n) / total
@@ -688,15 +681,12 @@ odds2<-1/odds
 resultados13 <- tibble(
   Grupo = c("Sin título universitario", "Con título universitario"),
   n = conteos$n,
-  Probabilidad = c(prob_sin, prob_con),
-  "Odds a favor de categoría" = c(odds, odds2)
+  Probabilidad = round(c(prob_sin, prob_con), 3),
+  `Odds a favor de categoría` = round(c(odds, odds2), 3)
 )
 resultados13
 
-
-
 ```
-
 :::
 
 ### Pregunta 14
@@ -708,12 +698,11 @@ resultados13
 # Simulaciones ya hechas: hijos_sin e hijos_con con 1e6 simulaciones
 
 
-# Comparar: contar cuántas veces una mujer con titulación tiene más hijos que una mujer sin titulación
+# Comparar viendo la media de veces una mujer con titulación tiene más hijos que una mujer sin titulación
 probabilidad_mas_hijos_titulada <- mean(hijos_con > hijos_sin)
 probabilidad_mas_hijos_titulada
 
 ```
-
 :::
 
 ### Pregunta 15
@@ -721,16 +710,19 @@ probabilidad_mas_hijos_titulada
 -   A partir de estas aproximaciones a las distribuciones predictivas posteriores, ¿podrías obtener la probabilidad conjunta de que una mujer no tenga ningún hijo y sea o no titulada universitaria? Justifica tu respuesta.
 
 ::: {#respuesta-15 .callout-note}
+#Salvo que se vuelva a asumir que la proporción muestral es la poblacional, no se podría hacer sin modelar una incertidumbre en torno al parámetro, lo cual implicaría volver a generar una posterior para el parámetro dentro de la categoría "sin título". El siguiente script resuelve la cuestión asumiendo representatividad perfecta como ya se hizo en el ejercicio 13.
+
 ```{r}
 
 # Probabilidad de tener 0 hijos para cada valor simulado de lambda (para ambos grupos)
 prob_0_hijos_sin <- exp(-lambda_sin)  # P(X = 0 | lambda_sin)
 prob_0_hijos_con <- exp(-lambda_con)  # P(X = 0 | lambda_con)
 
-# Promediar estas probabilidades para obtener la probabilidad de 0 hijos por grupo
+# Promedio de estas probabilidades para obtener la probabilidad de 0 hijos por grupo
 prob_0_hijos_sin_total <- mean(prob_0_hijos_sin)
 prob_0_hijos_con_total <- mean(prob_0_hijos_con)
 
+#Resultados
 resultados15 <- tibble(
   Grupo = c("Sin título universitario", "Con título universitario"),
   "Probabilidad 0 hijos" = c(prob_0_hijos_sin_total, prob_0_hijos_con_total)
@@ -738,7 +730,6 @@ resultados15 <- tibble(
 resultados15
 
 ```
-
 :::
 
 ## Comprobaciones predictivas posteriores
@@ -749,43 +740,42 @@ resultados15
 
 ::: {#respuesta-16 .callout-note}
 ```{r}
-# Simulaciones para mujeres con título universitario (ya realizadas previamente: hijos_con)
 
-# Calcular la proporción de mujeres con título universitario para cada número de hijos
-proporcion_hijos_con <- table(hijos_con) / n_sim  # Referido al total de simulaciones
+# Calculamos las proporciones empíricas
+datos_empiricos <- fertilidad_gss_1990 |>
+  filter(titulo_uni == "con") |>
+  mutate(proporcion = frecuencia / sum(frecuencia)) |>
+  select(n_hijos, proporcion) |>
+  mutate(fuente = "Empírico")
 
-# Crear un data frame con las proporciones para graficar
-df_proporcion <- tibble(
-  n_hijos = as.integer(names(proporcion_hijos_con)),
-  proporcion = as.numeric(proporcion_hijos_con)
-)
+# Y las predichas por el modelo
+datos_predictivos <- tibble(n_hijos = hijos_con) |>
+  count(n_hijos) |>
+  mutate(proporcion = n / sum(n)) |>
+  select(n_hijos, proporcion) |>
+  mutate(fuente = "Predictivo")
 
-# Crear data frame para densidad suavizada
-df_densidad <- tibble(n_hijos = hijos_con)
+# Unión en un df
+datos_combinados <- bind_rows(datos_empiricos, datos_predictivos)
 
-ggplot() +
-  # Distribución predictiva posterior (curva suavizada)
-  geom_density(data = df_densidad, aes(x = n_hijos, y = ..density.., fill = "Distribución posterior"),
-               alpha = 0.4, bw = 0.5) +
-  # Proporciones observadas (de la simulación)
-  geom_point(data = df_proporcion, aes(x = n_hijos, y = proporcion, color = "Proporciones observadas"),
-             size = 2) +
-  geom_line(data = df_proporcion, aes(x = n_hijos, y = proporcion, color = "Línea de proporciones"),
-            linewidth = 1) +
-  labs(
-    title = "Proporción de mujeres tituladas universitarias\ncon su distribución predictiva posterior",
+# Gráfico de barras para las proporciones empíricas y  predictivas
+ggplot(datos_combinados, aes(x = n_hijos, y = proporcion, fill = fuente)) +
+    geom_bar(stat = "identity", position = "dodge", width = 0.7, alpha = 0.6) +
+    labs(
+    title = "Proporciones Empíricas y Predictivas\npor Número de Hijos (Mujeres con Título Universitario)",
     x = "Número de hijos",
-    y = "Proporción / Densidad",
-    fill = "Distribución posterior",  # Leyenda para el relleno
-    color = "Elementos del gráfico"  # Leyenda para las líneas y puntos
+    y = "Proporción"
   ) +
-  scale_fill_manual(values = c("Distribución posterior" = PALETA[1])) +
-  scale_color_manual(values = c("Proporciones observadas" = PALETA[2], "Línea de proporciones" = PALETA[3])) +
-  theme(plot.title = element_text(face = "bold", hjust = 0.5)) # hjust() justifica el texto sobre el gráfico.
-
+  scale_fill_manual(values = c(
+    "Empírico" = PALETA[2],
+    "Predictivo" = PALETA[1]
+  )) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.title = element_blank()
+  )
 
 ```
-
 :::
 
 ## Comprobaciones predictivas posteriores sobre la muestra
@@ -811,18 +801,18 @@ A continuación vamos a hacer eso mismo con las distribuciones predictivas poste
 ```{r}
 # Obtener los máximos empíricos para ambos grupos
 max_hijos_empirico_con <- max(fertilidad_gss_1990 %>%
-                                filter(titulo_uni == "con") %>%
-                                pull(n_hijos))
+                                filter(titulo_uni == "con", frecuencia > 0) %>% 
+                                pull(n_hijos)) #frecuencia > 0 filtra los casos que efectivamente ocurren en los datos, quitando las categorías "0" (que se completaron en el df antes)
 
 max_hijos_empirico_sin <- max(fertilidad_gss_1990 %>%
-                                filter(titulo_uni == "sin") %>%
+                                filter(titulo_uni == "sin", frecuencia > 0) %>%
                                 pull(n_hijos))
 
 # Máximo número de hijos en las distribuciones predictivas posteriores
 max_hijos_predictiva_sin <- max(hijos_sin)
 max_hijos_predictiva_con <- max(hijos_con)
 
-# Crear tibble reorganizado para mejorar presentación
+# Resultados
 resultados17 <- tibble(
   Grupo = c("Sin título", "Con título"),
   Empírico = c(max_hijos_empirico_sin, max_hijos_empirico_con),
@@ -830,11 +820,7 @@ resultados17 <- tibble(
 )
 resultados17
 
-
-
-
 ```
-
 :::
 
 ### Pregunta 18
@@ -862,41 +848,24 @@ max_poisson <- function(lambda, n) {
 
 ::: {#respuesta-19 .callout-note}
 ```{r}
+# Se parte de la distribución posterior, de la que ya se han calculado lambda_con, n_con y max_hijos_empirico_con
 
-# Inicializar vectores para almacenar los máximos simulados
-maximos_simulados_con <- numeric(length(lambda_con))
-maximos_simulados_sin <- numeric(length(lambda_sin))
+# Se simulan los máximos con la función sapply, que permite aplicar una función a cada elemento de un vector (lambada_con), devolviendo directamente un vector con los resultados
+max_sim <- sapply(lambda_con, function(lambda) max_poisson(lambda, n_con))
 
-# Bucle para calcular los máximos simulados para el grupo con título
-for (i in 1:length(lambda_con)) {
-  maximos_simulados_con[i] <- max_poisson(lambda_con[i], n_con)
-}
-
-# Bucle para calcular los máximos simulados para el grupo sin título, pero con n_con
-for (i in 1:length(lambda_sin)) {
-  maximos_simulados_sin[i] <- max_poisson(lambda_sin[i], n_con)
-}
-
-# Contar cuántos máximos son menores o iguales que el máximo empírico
-conteo_menor_o_igual_con <- sum(maximos_simulados_con <= max_hijos_empirico_con)
-conteo_menor_o_igual_sin <- sum(maximos_simulados_sin <= max_hijos_empirico_sin)
-
-# Calcular los valores p para ambos grupos
-valor_p_con <- conteo_menor_o_igual_con / length(maximos_simulados_con)
-valor_p_sin <- conteo_menor_o_igual_sin / length(maximos_simulados_sin)
+# Calcular el valor-p predictivo posterior
+p_valor_predictivo <- mean(max_sim <= max_hijos_empirico_con)
 
 # Crear un tibble con los resultados
 resultados19 <- tibble(
-  grupo = c("Con título universitario", "Sin título universitario"),
-  valor_p = c(valor_p_con, valor_p_sin)
+  "P valor predictivo" = p_valor_predictivo
 )
 resultados19
 
-
-
 ```
-# Cada valor p predictivo indica el % de simulaciones que tienen máximos menores que los datos empíricos. El valor especialmente alto del grupo con podría hablar de una discrepancia entre el modelo y lo observado.
 
+#El valor p predictivo muestra que P(X\<=max_hijos_empirico_con)=0,436.
+Un valor cercano a 0,5 indica una discrepancia mínima entre lo simulado y lo observado.
 :::
 
 ### Pregunta 20
@@ -904,33 +873,33 @@ resultados19
 -   En base a tus observaciones de las distribuciones predictivas posteriores, propón una comprobación predictiva posterior en alguna (o ambas) de las distribuciones en función de la titulación universitaria. Determina el valor-$p$ predictivo posterior correspondiente e interprétalo.
 
 ::: {#respuesta-20 .callout-note}
+#El siguiente código trata de falsear la siguiente afirmación: "El modelo subestima el número de mujeres con título universitario que tienen 2 hijos, como se observa en el gráfico de la pregunta 16.
+
+#El p-valor elegido es, pues, unilateral
+
 ```{r}
 
-# Se busca el valor p predictivo para una muestra de mujeres universitarias de tamaño `{r} n_con` en la que el nñumero de mujeres con 4 de hijos sea igual o menor que el máximo empírico.
+# Se parte de la distribución posterior, de la que ya se han calculado lambda_con y n_con; falta la frecuencia de 2 hijos por simulación
 
-# Número de mujeres con 4 hijos en la muestra empírica (para el grupo con título universitario)
-n_4_hijos_empirico_con <- sum(fertilidad_gss_1990$n_hijos == 4 & fertilidad_gss_1990$titulo_uni == "con")
-
-# Simular muestras y contar cuántas tienen 4 hijos (usando sapply para resumir ya con la suma integrada)
-
-mujeres_4_hijos_con_simuladas <- sapply(lambda_con, function(lambda) {
-  muestras_simuladas <- rpois(n_con, lambda)  # Simulación de Poisson
-  sum(muestras_simuladas == 4)  # Contar cuántas tienen 4 hijos
+simulados_2_hijos <- sapply(lambda_con, function(lambda) {
+  sum(rpois(n_con, lambda) == 2)
 })
 
+#Se calcula la frecuencia observada para 2 hijos:
+observado_2_hijos <- fertilidad_gss_1990 %>%
+  filter(titulo_uni == "con", n_hijos == 2) %>%
+  pull(frecuencia)
 
-# Comparar el estadístico empírico con las simulaciones
-# Contar cuántas simulaciones tienenmás mujeres con 4 hijos
-conteo_menor_o_igual_con <- sum(mujeres_4_hijos_con_simuladas <= n_4_hijos_empirico_con)
+# Calcular el valor-p predictivo posterior (unilateral, para detectar subestimación)
+p_valor_2_hijos <- mean(simulados_2_hijos <= observado_2_hijos)
 
-# Calcular el valor-p
-valor_p_con_menor <- conteo_menor_o_igual_con / length(mujeres_4_hijos_con_simuladas)
-valor_p_con_menor
-
-
+# Crear un tibble con los resultados
+resultados20 <- tibble(
+  "P valor predictivo" = round(p_valor_2_hijos, 3)
+)
+resultados20
 
 ```
-#El valor p predictovo indica que un 38,7% de las observaciones empíricas tiene un número de mujeres con 4 hijos mayor que los datos empíricos.
 
-#El valor p predictivo moderado indica que es relativamente probable que el número de mujeres con 4 hijos observado en la muestra empírica pudiera haber ocurrido (no es muy extremo) bajo el modelo de distribución posterior.
+#El valor p predictovo indica que un 80,9 % de las simulaciones subestiman el número de mujeres con 2 hijos. Aunque es un valor moderado, no parece tan extremo como para ser alarmante, por lo que no se asumen discrepancias severas.
 :::
