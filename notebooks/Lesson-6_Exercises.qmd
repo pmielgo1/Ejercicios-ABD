@@ -713,6 +713,12 @@ probabilidad_mas_hijos_titulada
 #Salvo que se vuelva a asumir que la proporción muestral es la poblacional, no se podría hacer sin modelar una incertidumbre en torno al parámetro, lo cual implicaría volver a generar una posterior para el parámetro dentro de la categoría "sin título". El siguiente script resuelve la cuestión asumiendo representatividad perfecta como ya se hizo en el ejercicio 13.
 
 ```{r}
+#Probabilidad de tener o no estudios
+p_con_estudios <- fert_estadisticos |> 
+  filter(titulo_uni == "con") |> 
+  pull(n) / sum(fert_estadisticos$n)
+
+p_sin_estudios <- 1 - p_con_estudios
 
 # Probabilidad de tener 0 hijos para cada valor simulado de lambda (para ambos grupos)
 prob_0_hijos_sin <- exp(-lambda_sin)  # P(X = 0 | lambda_sin)
@@ -722,10 +728,15 @@ prob_0_hijos_con <- exp(-lambda_con)  # P(X = 0 | lambda_con)
 prob_0_hijos_sin_total <- mean(prob_0_hijos_sin)
 prob_0_hijos_con_total <- mean(prob_0_hijos_con)
 
+
+# Probabilidades conjuntas
+prob_conjunta_con <- prob_0_hijos_con_total * p_con_estudios
+prob_conjunta_sin <- prob_0_hijos_sin_total * p_sin_estudios
+
 #Resultados
 resultados15 <- tibble(
   Grupo = c("Sin título universitario", "Con título universitario"),
-  "Probabilidad 0 hijos" = c(prob_0_hijos_sin_total, prob_0_hijos_con_total)
+  "Probabilidad 0 hijos" = c(prob_conjunta_sin, prob_conjunta_con)
 )
 resultados15
 
@@ -901,5 +912,5 @@ resultados20
 
 ```
 
-#El valor p predictovo indica que un 80,9 % de las simulaciones subestiman el número de mujeres con 2 hijos. Aunque es un valor moderado, no parece tan extremo como para ser alarmante, por lo que no se asumen discrepancias severas.
+#El valor p predictivo indica que un 80,9 % de las simulaciones subestiman el número de mujeres con 2 hijos. Aunque es un valor moderado, no parece tan extremo como para ser alarmante, por lo que no se asumen discrepancias severas.
 :::
