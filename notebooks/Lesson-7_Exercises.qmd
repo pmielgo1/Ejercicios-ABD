@@ -747,13 +747,19 @@ Fíjate en la sección [`generated quantities`](https://mc-stan.org/docs/referen
 #Primero hay que buscar el archivo y añadir lo que se solicita, eso se hace fuera de R
 
 #Ajustamos el modelo por segunda vez
+datos_logit <- list(
+  y = logit |> pull(y),
+  x = logit |> select(starts_with('x')),
+  N = nrow(logit),
+  K = ncol(logit) - 1L
+)
+
 fit_logit_stan2 <- stan(
   file   = "../src/geyer_2011_logistic - copia.stan",
   data   = datos_logit,
-  iter   = 2000,
-  chains = 4,
-  seed   = 123
-)
+  iter   = 1000L,
+  chains = 4L
+  )
 
 #Vemos los coeficientes
 print(fit_logit_stan2, pars = c("alpha_2", "beta_2"))
@@ -780,7 +786,7 @@ ggplot(posterior_long, aes(x = Valor, fill = Parámetro)) +
   geom_density(alpha = 0.6) +
   facet_wrap(~ Parámetro, scales = "free") +
   ylab("Densidad") +
-  xlim(-0.5, 5.5) +  # Esto establece que el eje X empiece en -0.5
+  xlim(-0.5, 8) +  # Esto establece que el eje X empiece en -0.5
   labs(title = "Distribuciones posteriores de alpha_2 y beta_2")
 ```
 
