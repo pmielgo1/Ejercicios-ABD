@@ -20,3 +20,8 @@ model {
   alpha ~ normal(0, 2);
   y ~ bernoulli_logit(alpha + x * beta);
 }
+
+generated quantities {
+  real alpha_2 = square(alpha);
+  vector[K] beta_2 = square(beta);
+}
