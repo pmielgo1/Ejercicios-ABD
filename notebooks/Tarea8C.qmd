@@ -1,0 +1,605 @@
+---
+---
+title: "Tarea final"
+format:
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+callout-appearance: minimal
+---
+
+# Puesta a punto del entorno
+
+A continuación se procede a cargar los paquetes requeridos para el ejercicio, además de las especificaciones de redcondeo, colores y semillas aleatroias típicas de cada práctica.
+
+```{r setup}
+#| message: false
+
+# Paquetes:
+library(tidyverse)
+library(RColorBrewer)
+library(scales)
+library(rstan)
+library(lme4)
+library(nlme)
+library(lmerTest)
+library(bayesplot)
+library(ggpubr)
+library(ggplot2)
+library(brms)
+library(tibble)
+
+# Configuración de la salida gráfica:
+PALETA <- brewer.pal(8, "Set2") # Paleta por defecto
+color_defecto <- PALETA[1]      # Color por defecto
+options(ggplot2.discrete.colour = PALETA)
+
+theme_set(theme_bw()) # Tema "neutro" para la representación gráfica
+
+# Redondea los números reales "inline":
+options(digits = 3L)                
+options(knitr.digits.signif = FALSE)
+
+# Inicializa la semilla aleatoria:
+set.seed(20250408)
+```
+
+# Introducción y presentación de datos
+
+Para la realización de esta tarea se eligió trabajar con el dataset libre de R "Orthodont", disponible en el paquete "nlme".
+Este dataset contiene los datos de un estiudio llevado a cabo por la Facultad de Odontología de la Universidad de Carolina del Norte.
+En él se recogen las medidas clínicas de la distancia entre la glándula pituitaria y la fisura pterigomaxilar en niños desde los 8 a los 14 años, cada 2 años.
+El objetivo de este estudio fue evaluar la variación en la distancia entre estos puntos craneales asociada al crecimiento.
+
+A continuación, se presentan los datos de manera descriptiva y gráfica:
+
+```{r Datos}
+
+#Numéricamente
+data("Orthodont")
+Orthodont$age <- as.factor(Orthodont$age) # Establecer como factor categórico
+summary(Orthodont)
+
+#Gráficamente
+
+ggplot(Orthodont, aes(x = factor(age), y = distance, fill = Sex)) +
+  geom_boxplot(alpha = 0.7) +
+  labs(
+    title = "Distancia dental según la edad y sexo",
+    x = "Edad (años)",
+    y = "Distancia (mm)",
+    fill = "Sexo"
+  )
+
+# Y de manera pormenorizada
+
+ggplot(Orthodont, aes(x = factor(age), y = distance, group = Subject, color = Sex)) +
+  geom_point(size = 2, alpha = 0.7) +
+  geom_line(alpha = 0.5) +
+  labs(
+    title = "Evolución de la distancia dental por edad y sexo",
+    x = "Edad (años)",
+    y = "Distancia (mm)",
+    color = "Sexo"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+# Y niño por niño para detectar patrones anormales
+
+ggplot(Orthodont, aes(x = factor(age), y = distance, group = Subject, color = Sex)) +
+  geom_point(size = 2) +
+  geom_line(aes(group = Subject), alpha = 0.7) +
+  facet_wrap(~ Subject) +
+  labs(
+    title = "Distancia dental según la edad, línea por niño",
+    x = "Edad (años)",
+    y = "Distancia (mm)",
+    color = "Sexo"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 8),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+```
+
+En los gráficos se aprecia claramente una tendencia creciente para ambos grupos a lo largo del tiempo.
+Se observan también algunos outliers.
+Solo se eliminaron los correspondientes al los sujetos M13, M08 y M09 (todo el sujeto, por mantener el equilibrio en el modelo) por presentar un patrón anómalo.
+
+```{r - Eliminación outlier}
+
+Orthodont <- Orthodont %>%
+  filter(!Subject %in% c("M13", "M09", "M08"))
+```
+
+El resto de potenciales outliers fueron conservados por desconocerse el contexto completo de la toma de datos y no contar con una justificación teórica que permita su eliminación, pasando a ser tratados como parte de la variabilidad poblacional subyacente a la muestra.
+
+# Elección del modelo
+
+Como se puede deducir del gráfico, el análisis más inmediato de los datos es de medidas repetidas, concretamente, se llevará a cabo un modelo lineal de medidas repetidas bajo el enfoque de los modelos mixtos, permitiendo que la modelización de la varianza por sujeto como factor aleatorio, y en contexto bayesiano.
+
+Formalmente:
+
+$$
+\begin{aligned}
+\text{Distancia (mm)}_{ij} &= \beta_0 + \beta_1 \cdot \text{Edad}_{ij} + \beta_2 \cdot \text{Género}_i + \beta_3 \cdot (\text{Edad}_{ij} \times \text{Género}_i) + U_i + \epsilon_{ij} 
+\\U_i &\sim \mathcal{N}(0, \sigma_U^2) \quad \text{(efecto aleatorio para el individuo } i\text{)} 
+\\\epsilon_{ij} &\sim \mathcal{N}(0, \sigma^2) \quad \text{(error residual)}\end{aligned}
+$$
+
+Con este modelo, se elabora un modelo en Stan, para el cual es necesario definir una serie de distribuciones a priori para los diferentes parámetros a estimar, que se detallan a continuación:
+
+- Intersección: Se presupone una distribución normal vagamente informativa para el parámetro. Esta normal está truncada positivamente, puesto que no pueden existir distancias negativas
+La media 0 de la normal trata de evitar la introducción de sesgos, mientras que la varianza 25 asegura que el rango contenga el posible valor razonable del intercepto.
+
+$$
+\beta_0 \sim \mathcal{N}^+(0, 25)
+$$
+
+-   Coeficientes de factores: De nuevo, para los coeficientes asociados a los factores, se emplean priors normales (esta vez no truncados) poco informativos. En este caso, con un rango de varianza menor, puesto que no se esperan valores tan elevados como los de la intersección.
+
+$$
+\begin{aligned}
+\beta_{\text{sex}} &\sim \mathcal{N}(0, 5) \\
+\beta_{\text{age}} &\sim \mathcal{N}(0, 5) \\
+\beta_{\text{int}} &\sim \mathcal{N}(0, 5)
+\end{aligned}
+$$
+
+-   Desviación estándar residual y del efecto aleatorio: Se utiliza un prior poco informativo mediante una distribución de Cauchy que, aunque favorece valores razonables, no limita el tamaño de la varianza, el cual se presupone desconocido. Puesto que la varianza solo puede ser positiva, la distribución, centrada en 0, se trunca para que solo exista en [0, ∞+).
+
+$$
+\begin{aligned}
+\sigma_U &\sim \text{Cauchy}^+(0,\ 2.5) \\
+\sigma_e &\sim \text{Cauchy}^+(0,\ 2.5)
+\end{aligned}
+$$
+
+-   Efecto aleatorio: Al coeficiente del efecto aleatorio (sujeto) se le asigna de nuevo un prior normal centrado en 0.
+Sin embargo, en este caso, la varianza de la distribución viene definida por la desviación estándar estimada gracias a la posterior obtenida del prior del punto anterior.
+
+$$
+U_i \sim \mathcal{N}(0, \sigma_U), \quad i = 1, \dots, J
+$$
+
+# Ejecución del modelo
+
+Una vez definido el modelo en Stan, se procede a la ejecución del mismo con ayuda del paquete rstan.
+  
+Primeramente se preparan los datos para el modelo:
+
+```{r - Preparación datos modelo}
+
+# Convertir variables a formato que maneje Stan
+subject <- as.integer(factor(Orthodont$Subject))
+sex <- ifelse(Orthodont$Sex == "Male", 1, 0)
+distance <- Orthodont$distance
+age <- as.integer(factor(Orthodont$age))
+
+# Preparar datos para Stan
+stan_data <- list(
+ N = length(distance),
+ J = length(unique(subject)),
+ subject = subject,
+ y = distance,
+ sex = sex,
+ age = age
+ )
+
+```
+
+A continuación, se ejecuta el modelo.
+    
+Como especificaciones iniciales, se corren 4 cadenas de Markov con 5000 iteraciones cada una y un burn-in de las 500 primeras para evitar dependencia del estado inicial.
+
+```{r - Ejecución modelo}
+
+fit <- stan(
+ file = "../src/orthodontmodelo1.stan",
+ data = stan_data,
+ chains = 4,
+ iter = 5000,
+ warmup = 500,
+ )
+
+print(fit)
+
+```
+
+Se observa que, para todos los parámetros, se ha logrado un tamaño efectivo de, al menos 2000 iteraciones.
+
+Asimismo, y aunque solo sería valido en una distribución monomodal, todos los Rhat de los parámetros estimados son 1, lo que refueza una idea de convergencia que será apoyada mediante el siguiente traceplot.
+
+```{r - Traceplot}
+
+# Obtener resumen completo
+res <- summary(fit)$summary
+
+# Para los coeficientes y las sigma residual y de u
+params_1 <- rownames(res)[!grepl("^u\\[|lp__", rownames(res))]
+traceplot(fit, pars = params_1)
+
+# Para los diferentes u
+params_u <- rownames(res)[grepl("^u\\[", rownames(res))]
+traceplot(fit, pars = params_u)
+
+# Para el log posterior
+params_lp <- rownames(res)[grepl("^lp__", rownames(res))]
+traceplot(fit, pars = params_lp)
+
+
+```
+
+De acuerdo a los gráficos, la mezcla parece haber sido eficiente.
+
+Es podible, también evaluar la autocorrelación, aunque la información proporcionada sea redundante con la del Tamaño Efectivo.
+
+```{r - Autocorrelación}
+
+# Para los coeficientes y las varianzas residual y de u
+stan_ac(fit, pars = params_1)
+
+# Para los diferentes u
+stan_ac(fit, pars = params_u)
+
+# Para el log posterior
+stan_ac(fit, pars = params_lp)
+
+```
+
+Aparentemente, la autocorrelación cae rápidamente de forma sustancial, garantizando un efecto mínimo y no quedando justificada la aplicaciíon de thinning.
+
+A continuación, se grafican los intervalos de credibilidad de los estimadores de los coeficientes fijos y de las dos varianzas estimadas por el modelo:
+
+```{r - Intervalos de credibilidad}
+
+plot(fit, ci_level = 0.80, outer_level=0.95) +
+  theme_minimal() + #Aquí había demasiadas líneas
+  ggtitle("Modelo Bayesiano Mixto de Medidas Repetidas") +
+  xlab("Valor (IC80 e IC95)")+
+  ylab("Parámetro")
+
+```
+
+Y a continuación se muestran las distribuciones posteriores de estos parámetros:
+
+```{r - Posteriores modelo}
+
+#Intersección
+mcmc_areas(fit,
+           pars = c("beta_0"),
+           prob = 0.95) +
+  ggtitle("Intervalos de credibilidad (95%) de la intersección") +
+  xlab("Valor") +
+  ylab("Parámetro")
+
+# Coeficientes 
+mcmc_areas(fit,
+           pars = c("beta_sex", "beta_age[1]", "beta_age[2]", "beta_age[3]", "beta_int[1]", "beta_int[2]", "beta_int[3]"),
+           prob = 0.95) +
+  ggtitle("Intervalos de credibilidad (95%) de los coeficientes") +
+  xlab("Valor") +
+  ylab("Parámetro")
+
+# Desviaciones estándar
+mcmc_areas(fit,
+           pars = c("sigma", "sigma_u"),
+           prob = 0.95) +
+  ggtitle("Intervalos de credibilidad (95%) de las Desviaciones Estándar") +
+  xlab("Valor") +
+  ylab("Parámetro")
+
+```
+Adicionalmente, se pueden estimar otros parámetros, como el CCI, para determinar cuánta de la variabilidad observada se debe a la variabilidad intersujeto:
+
+```{r - CCI}
+
+# Extraer muestras posteriores
+posterior <- rstan::extract(fit)
+sigma_u_samples <- posterior$sigma_u
+sigma_samples <- posterior$sigma
+
+# Calcular CCI para cada muestra
+cci_samples <- (sigma_u_samples^2) / (sigma_u_samples^2 + sigma_samples^2)
+
+# Estadísticos resumen
+cci_mean <- mean(cci_samples)
+cci_ci <- quantile(cci_samples, probs = c(0.025, 0.975))
+
+# Crear tibble resumen (sin MAP)
+cci_summary <- tibble(
+  Estadístico = c("Media CCI posterior",
+                  "CCI 95% intervalo inferior",
+                  "CCI 95% intervalo superior"),
+  Valor = c(cci_mean, cci_ci[1], cci_ci[2])
+)
+
+print(cci_summary)
+
+# Gráficamente
+
+# Crear el data frame con las muestras
+df_cci <- data.frame(cci = cci_samples)
+
+# Calcular la densidad
+dens <- density(df_cci$cci)
+dens_df <- data.frame(x = dens$x, y = dens$y)
+
+# Filtrar para el intervalo de credibilidad 95%
+dens_df_IC <- dens_df %>%
+  filter(x >= cci_ci[1], x <= cci_ci[2])
+
+# Gráfico
+ggplot(dens_df, aes(x = x, y = y)) +
+  geom_line(size = 0.5, color = "blue") +
+  geom_ribbon(data = dens_df_IC, aes(x = x, ymin = 0, ymax = y),
+              fill = "skyblue", alpha = 0.3) +
+  geom_vline(aes(xintercept = cci_mean, color = "Media posterior"),
+             linetype = "dashed", size = 1) +
+  scale_color_manual(name = NULL,
+                     values = c("Media posterior" = "blue")) +
+  guides(color = guide_legend(override.aes = list(
+    linetype = "dashed", size = 1
+  ))) +
+  labs(
+    title = "Distribución posterior del CCI",
+    subtitle = "Franja azul: intervalo de credibilidad al 95%",
+    x = "CCI",
+    y = "Densidad"
+  ) +
+  theme_minimal()
+```
+
+# Comprobaciones del modelo lineal
+
+Más allá de las ya presentadas, es necesario comrpobar que el modelo cumple con los supuestos del marco teórico de trabajo; esto es, con la normalidad y homocedasticidad residual, además de la falta de autocorrelación.
+Dado que se está trabajando en un marco puramente bayesiano, esta evaluación se realizará sin recurrir a tests frecuentistas.
+
+Para ello, se necesitan, en primer lugar, las predicciones del modelo, las cuales se estiman de forma explícita en el siguiente comando, que es el mismo modelo anteriormente ejecutado pero con el cálculo de estos valores especificado en el archivo Stan (nota, en este caso, no se explicitan la confirmación visual de los traceplot y la autorregresión, pero estas fueron llevadas a cabo con los resultados satisfactorios):
+
+```{r - Estimación y_rep}
+
+fit <- stan(
+  file = "../src/orthodontmodelo2.stan",
+  data = stan_data,
+  chains = 4,
+  iter = 5000,
+  warmup = 500,
+  )
+
+print(fit)
+
+```
+
+
+Para la evaluación de la normalidad, basta con representar los residuos generados:
+
+```{r - Normalidad residual}
+
+#Extraer residuales del modelo
+posterior <- rstan::extract(fit)
+y_rep <- posterior$y_rep
+residuals_post <- sweep(y_rep, 2, stan_data$y, FUN = "-") * (-1) #Resta las observaciones reales de cada simulación
+
+# Número de observaciones
+N <- ncol(residuals_post)
+
+# Para cada iteración y cada observación, calculamos X residuales ordenados (Q-Q)
+resid_sorted <- t(apply(residuals_post[1:1800, ], 1, sort))
+
+
+# Calcular media y quantiles para cada posición del Q-Q
+resid_mean <- apply(resid_sorted, 2, mean)
+resid_lower <- apply(resid_sorted, 2, quantile, 0.025)
+resid_upper <- apply(resid_sorted, 2, quantile, 0.975)
+
+# Calcular los quantiles teóricos normales
+theoretical_q <- qnorm(ppoints(N))
+
+# Crear data frame para ggplot
+df <- data.frame(
+  theo = theoretical_q,
+  resid_mean = resid_mean,
+  resid_lower = resid_lower,
+  resid_upper = resid_upper
+)
+
+# Gráfico Q-Q con barras de error
+ggplot(df, aes(x = theo, y = resid_mean)) +
+  geom_point(color = "blue") +
+  geom_errorbar(aes(ymin = resid_lower, ymax = resid_upper), alpha = 0.4) +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(
+    title = "Q-Q plot de residuos con incertidumbre (barras de error)",
+    x = "Cuantiles teóricos normales",
+    y = "Cuantiles de residuos (media y 95% intervalo)"
+  )
+
+```
+
+A pesar de algunos outliers (que se incluyeron ya de manera consciente en el modelo), los datos parecen comportarse de manera sufucientemente normal (además de que, como n>30, se podría realizar la aproximación por el TLC).
+
+Para la homocedasticidad:
+
+```{r - Homocedasticidad residual}
+
+# Data frame con los residuales (ya calculados para normalidad)
+y_media <- apply(y_rep, 2, mean)
+df <- data.frame(
+  pred = y_media,
+  resid = resid_mean,
+  resid_lower = resid_lower,
+  resid_upper = resid_upper
+)
+
+#Gráfico
+
+ggplot(df, aes(x = pred, y = resid)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = resid_lower, ymax = resid_upper), alpha = 0.4) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Residuos vs Predicción con Incertidumbre",
+       x = "Predicción",
+       y = "Residuo")
+```
+
+No parece haber patrones de acumulación asimétrica que sugieran la presencia de problemas severos de heterocedasticidad.
+
+Y finalmente para la falta de autorrelación residual, se puede usar un procedimiento tipo AFC que incluya la incertidumbre bayesiana:
+
+```{r - Autocorrelación residual}
+
+# Número máximo de retardos (lags)
+max_lag <- 3
+n_iter <- nrow(y_rep)
+
+# Para guardar los resultados de autocorrelación por iteración
+acf_mat <- matrix(NA, nrow = n_iter, ncol = max_lag + 1)  # Incluye lag=0
+
+# Calcular ACF de residuos para cada iteración
+for (i in 1:n_iter) {
+  acf_res <- acf(residuals_post[i, ], plot = FALSE, lag.max = max_lag)
+  acf_mat[i, ] <- acf_res$acf[,1,1]
+}
+
+# Calcular media e IC95
+acf_mean <- apply(acf_mat, 2, mean)
+acf_lower_95 <- apply(acf_mat, 2, quantile, probs = 0.025)
+acf_upper_95 <- apply(acf_mat, 2, quantile, probs = 0.975)
+
+
+#Data frame para ggplot
+df_acf <- data.frame(
+  lag = 0:max_lag,
+  mean = acf_mean,
+  lower_95 = acf_lower_95,
+  upper_95 = acf_upper_95
+)
+
+# Gráfico ACF con incertidumbre 95%
+ggplot(df_acf, aes(x = lag, y = mean)) +
+  geom_point(color = "blue") +
+  geom_line(color = "blue") +
+  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), alpha = 0.2, fill = "red") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  labs(
+    title = "Función de autocorrelación (ACF) de residuos con IC 95%",
+    x = "Retardo (lag)",
+    y = "Autocorrelación media",
+    )
+```
+
+A un nivel de credibilidad del 95%, no se observa autocorrelación entre los residuos, lo que valida el supuesto fundamental de independencia resdual.
+
+Finalmente, para terminar la evaluación de la bondad del modelo, se grafican los posteriores predictivos de diversas iteraciones sobre la distribución empírica de los datos:
+
+```{r}
+
+# Gráfico
+p <- ppc_dens_overlay(
+  y = stan_data$y,
+  yrep = y_rep[1:1000, ], # Si se usan todas, se satura el gráfico
+  alpha = 0.3,                   
+  size = 0.7                    
+) + 
+  ggtitle("Distribución de observados vs. réplicas simuladas") +
+  xlab("Valor de la variable Distancia (mm)") +
+  ylab("Densidad estimada") +           
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.title = element_text(face = "bold"),
+    legend.position = "right"
+  )
+
+print(p)
+
+```
+
+```{r - P-predictivo de la media}
+
+mean_obs <- mean(stan_data$y)
+mean_sim <- apply(y_rep, 1, mean)  # media de y_rep en cada iteración
+
+# Calcular el p predictivo
+p_bayes <- mean(mean_sim > mean_obs)
+print(paste("P predictivo basado en la media:", round(p_bayes, 3)))
+
+```
+
+Se observa que existe una alta bondad de ajuste entre predicciones y distribución empírica, lo que sugiere que el modelo captura correctamente la estructura de los datos.
+
+
+# Interpretación sustantiva
+
+Tras haber chequeado los supuestos del modelo, se puede proceder a la interpretación sustantiva. Para hablar de un único valor para cada parámetro estimado (aunque se debe tener en cuenta toda la posterior), se usará el MAP del mismo:
+
+```{r - MAPs}
+# Función para obtener el MAP estimado
+get_map <- function(x) {
+  d <- density(x)
+  d$x[which.max(d$y)]
+}
+
+# MAP para todos los parámetros y el CCI (usando cci_samples ya existente)
+params_map <- data.frame(
+  Parameter = c("beta_0", "beta_sex", 
+                paste0("beta_age[", 1:3, "]"),
+                paste0("beta_int[", 1:3, "]"),
+                "sigma", "sigma_u", "CCI"),
+  MAP = c(
+    get_map(posterior$beta_0),
+    get_map(posterior$beta_sex),
+    apply(posterior$beta_age, 2, get_map),
+    apply(posterior$beta_int, 2, get_map),
+    get_map(posterior$sigma),
+    get_map(posterior$sigma_u),
+    get_map(cci_samples) 
+  )
+)
+
+print(params_map[1:11, ] %>% 
+        mutate(MAP = round(MAP, 3)))
+```
+Con estos datos, podemos estimar que:
+
+- El valor medio para todos los sujetos cuando la edad es 8 años y el sexo es femenino es de `r params_map$MAP[params_map$Parameter == "beta_0"]` mm de distancia P-F. La distribución de este parámetro no contiene el 0 al 95 % de credibilidad.
+
+- Este valor de distancia aumenta en `r params_map$MAP[params_map$Parameter == "beta_sex"]` mm cuando el sexo es masculino. La distribución de este parámetro no contiene el 0 al 95 % de credibilidad.
+
+- El valor, siempre dentro de sexo femenino, aumenta, respecto a los 8 años, `r params_map$MAP[params_map$Parameter == "beta_age[1]"]` mm a los 10 años; `r params_map$MAP[params_map$Parameter == "beta_age[2]"]` mm a los 12 años y `r params_map$MAP[params_map$Parameter == "beta_age[3]"]` mm a los 14 años.  
+Las distribuciones de estos parámetros no contienen el 0 al 95 % de credibilidad.
+
+- En el nivel de sexo masculino, el valor, respecto a los 8 años, decrece `r params_map$MAP[params_map$Parameter == "beta_int[1]"]` mm respecto a las mujeres a los 10 años y aumenta `r params_map$MAP[params_map$Parameter == "beta_int[2]"]` mm respecto a las mujeres a los 12 años. La distribución de ambos parámetros contiene el 0 al 95 % de credibilidad.
+
+- En el mismo nivel de sexo masculino y respecto a los 8 años, la distancia aumenta `r params_map$MAP[params_map$Parameter == "beta_int[3]"]` mm respecto a las mujeres a los 14 años. La distribución de este parámetro no contiene el 0 al 95 % de credibilidad.
+
+- La varianza residual es de `r params_map$MAP[params_map$Parameter == "sigma"]^2`, mientras que la varianza intersujetos es de `r params_map$MAP[params_map$Parameter == "sigma_u"]^2`. La distribución de las desviaciones estándar de las que peovienen ambos parámetros no contiene el 0 al 95 % de credibilidad.
+
+- El valor elevado de CCI (`r params_map$MAP[params_map$Parameter == "CCI"]`) justifica la adición de este efecto aleatorio en el modelo.
+
+Estos datos son coherentes con lo observado y con la literatura, la cual indica que la estructura facial de los hombres favorece distancias P-F mayores que en las mujeres, si bien el desarrollo puede ser ligeramente más tardío. *
+
+* Posnick, J. C. (2000). *Craniofacial and Maxillofacial Surgery in Children and Young Adults.*
+
+
+# ANEXO: Comparación con un modelo frecuentista
+
+Como útima comparación, se puede probar a ajustar el modelo de forma frecuentista para ver cómo cambian los resultados obtenidos. De esta manera:
+
+```{r - Modelo frecuentista}
+
+# Hay que ajustar la categoría de referencia para que sea más fácil comprarar
+Orthodont$Sex<- relevel(Orthodont$Sex, ref = "Female") 
+
+#Ajustar el modelo usalndo lmer y lmertest
+modelo_freq <- lmer(distance ~ age + Sex + age*Sex + (1|Subject), data=Orthodont)
+summary(modelo_freq)
+
+```
+A partir de lo observado, se ve que los estimadores obtenidos por el modelo frecuentista son bastante similares. Cabe destacar también que, en este caso, los coeficientes significativos bajo el modelo frecuentista coinciden con aquellos que, en el modelo bayesiano, no contienen el 0 en su IC 95%.

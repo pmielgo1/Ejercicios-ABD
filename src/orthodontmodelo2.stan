@@ -1,4 +1,4 @@
-// Modelo de regresión con efectos fijos y aleatorios
+// Modelo lineal mixto
 data {
   int<lower=1> N;                     // Número total de observaciones
   int<lower=1> J;                     // Número de sujetos
