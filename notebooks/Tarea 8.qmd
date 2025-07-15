@@ -582,7 +582,7 @@ Las distribuciones de estos valores no contienen el 0 al 95 % de credibilidad.
 Estos datos son coherentes con lo observado y con la literatura, la cual indica que la estructura facial de los hombres favorece distancias P-F mayores que en las mujeres, si bien el desarrollo puede ser ligeramente más tardío.
 
 
-# 4. Comparación con un modelo frecuentista
+# 4. ANEXO: Comparación con un modelo frecuentista
 
 Como útima comparación, se puede probar a ajustar el modelo de forma frecuentista para ver cómo cambian los resultados obtenidos. De esta manera:
 
