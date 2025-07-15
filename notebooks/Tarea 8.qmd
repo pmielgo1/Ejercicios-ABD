@@ -528,7 +528,7 @@ print(paste("P predictivo basado en la media:", round(p_bayes, 3)))
 
 ```
 
-Se observa que hay una alta bondad de ajuste entre predicciones y distribución empírica, lo que sugiere que el modelo captura correctamente la estructura de los datos.
+Se observa que existe una alta bondad de ajuste entre predicciones y distribución empírica, lo que sugiere que el modelo captura correctamente la estructura de los datos.
 
 
 ## 4. Interpretación sustantiva
