@@ -390,9 +390,8 @@ residuals_post <- sweep(y_rep, 2, stan_data$y, FUN = "-") * (-1) #Resta las obse
 # Número de observaciones
 N <- ncol(residuals_post)
 
-# Para cada iteración y cada observación, calculamos X residuales ordenados (Q-Q)
-resid_sorted <- t(apply(residuals_post[1:1800, ], 1, sort))
-
+# Para cada iteración y cada observación, calculamos los residuales ordenados (Q-Q)
+resid_sorted <- t(apply(residuals_post[1:nrow(residuals_post), ], 1, sort))
 
 # Calcular media y quantiles para cada posición del Q-Q
 resid_mean <- apply(resid_sorted, 2, mean)
