@@ -574,7 +574,7 @@ Con estos datos, podemos estimar que:
 - El valor, siempre dentro de sexo femenino, aumenta, respecto a los 8 años, `r params_map$MAP[params_map$Parameter == "beta_age[1]"]` mm a los 10 años; `r params_map$MAP[params_map$Parameter == "beta_age[2]"]` mm a los 12 años y `r params_map$MAP[params_map$Parameter == "beta_age[3]"]` mm a los 14 años.  
 Las distribuciones de estos parámetros no contienen el 0 al 95 % de credibilidad.
 
-- En el nivel de sexo masculino, el valor, respecto a los 8 años, decrece `r params_map$MAP[params_map$Parameter == "beta_int[1]"]` mm respecto a las mujeres a los 10 años y aumenta `r params_map$MAP[params_map$Parameter == "beta_int[2]"]` mm respecto a las mujeres a los 12 años. La distribución de ambos parámetros contiene el 0 al 95 % de credibilidad.
+- En el nivel de sexo masculino, el valor, respecto a los 8 años, decrece `r params_map$MAP[params_map$Parameter == "beta_int[1]"]` mm respecto al de las mujeres a los 10 años y aumenta `r params_map$MAP[params_map$Parameter == "beta_int[2]"]` mm respecto a las mujeres a los 12 años. La distribución de ambos parámetros contiene el 0 al 95 % de credibilidad.
 
 - En el mismo nivel de sexo masculino y respecto a los 8 años, la distancia aumenta `r params_map$MAP[params_map$Parameter == "beta_int[3]"]` mm respecto a las mujeres a los 14 años. La distribución de este parámetro no contiene el 0 al 95 % de credibilidad.
 
