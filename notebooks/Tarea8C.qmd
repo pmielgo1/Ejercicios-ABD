@@ -11,7 +11,7 @@ callout-appearance: minimal
 
 # Puesta a punto del entorno
 
-A continuación se procede a cargar los paquetes requeridos para el ejercicio, además de las especificaciones de redcondeo, colores y semillas aleatroias típicas de cada práctica.
+A continuación, se procede a cargar los paquetes requeridos para el ejercicio, además de las especificaciones de redcondeo, colores y semillas aleatroias típicas de cada práctica.
 
 ```{r setup}
 #| message: false
