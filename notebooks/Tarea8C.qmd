@@ -152,12 +152,12 @@ $$
 \end{aligned}
 $$
 
--   Desviación estándar residual y del efecto aleatorio: Se utiliza un prior poco informativo mediante una distribución de Cauchy que, aunque favorece valores razonables, no limita el tamaño de la varianza, el cual se presupone desconocido. Puesto que la varianza solo puede ser positiva, la distribución, centrada en 0, se trunca para que solo exista en [0, ∞+).
+-   Desviación estándar residual y del efecto aleatorio: Se utiliza un prior poco informativo mediante una distribución t de Student de media 0, escala 2 y con 5 grados de libertad que, aunque favorece valores razonables, no limita tanto el tamaño de la sd, el cual se presupone desconocido, como una normal. Puesto que la varianza solo puede ser positiva, la distribución, centrada en 0, se trunca para que solo exista en [0, ∞+).
 
 $$
 \begin{aligned}
-\sigma_U &\sim \text{Cauchy}^+(0,\ 2.5) \\
-\sigma_e &\sim \text{Cauchy}^+(0,\ 2.5)
+\sigma_U &\sim t_5^+(0,\ 2) \\
+\sigma_e &\sim t_5^+(0,\ 2)
 \end{aligned}
 $$
 

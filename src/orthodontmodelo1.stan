@@ -28,8 +28,8 @@ model {
   beta_int ~ normal(0, 5);
 
   // Priors para desviaciones estándar
-  sigma ~ cauchy(0, 2.5);
-  sigma_u ~ cauchy(0, 2.5);
+  sigma ~ student_t(5, 0, 2);
+  sigma_u ~ student_t(5, 0, 2);
   u ~ normal(0, sigma_u);
 
   // Construcción del modelo
