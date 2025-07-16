@@ -1,4 +1,4 @@
-// Modelo lineal mixto (2)
+// Modelo lineal mixto (con generated quantities)
 data {
   int<lower=1> N;                     // Número total de observaciones
   int<lower=1> J;                     // Número de sujetos

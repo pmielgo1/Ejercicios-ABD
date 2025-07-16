@@ -109,7 +109,7 @@ ggplot(Orthodont, aes(x = factor(age), y = distance, group = Subject, color = Se
 ```
 
 En los gráficos se aprecia claramente una tendencia creciente para ambos grupos a lo largo del tiempo.
-Se observan también algunos outliers.
+Se observan, también, algunos outliers.
 Solo se eliminaron los correspondientes al los sujetos M13, M08 y M09 (todo el sujeto, por mantener el equilibrio en el modelo) por presentar un patrón anómalo.
 
 ```{r - Eliminación outliers}
