@@ -112,7 +112,7 @@ En los gráficos se aprecia claramente una tendencia creciente para ambos grupos
 Se observan también algunos outliers.
 Solo se eliminaron los correspondientes al los sujetos M13, M08 y M09 (todo el sujeto, por mantener el equilibrio en el modelo) por presentar un patrón anómalo.
 
-```{r - Eliminación outlier}
+```{r - Eliminación outliers}
 
 Orthodont <- Orthodont %>%
   filter(!Subject %in% c("M13", "M09", "M08"))
